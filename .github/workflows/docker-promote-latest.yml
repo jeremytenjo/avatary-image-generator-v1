@@ -1,0 +1,47 @@
+name: Promote Existing Tag To Latest
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_name:
+        description: "Docker image name"
+        required: true
+        type: string
+        default: body-gen-comfyui
+      source_tag:
+        description: "Existing tag to promote (example: v1.0.7)"
+        required: true
+        type: string
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate source tag exists
+        run: |
+          docker buildx imagetools inspect \
+            "${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image_name }}:${{ inputs.source_tag }}"
+
+      - name: Promote source tag to latest
+        run: |
+          docker buildx imagetools create \
+            -t "${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image_name }}:latest" \
+            "${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image_name }}:${{ inputs.source_tag }}"
+
+      - name: Print result
+        run: |
+          echo "Promoted:"
+          echo "${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image_name }}:${{ inputs.source_tag }}"
+          echo "to:"
+          echo "${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image_name }}:latest"
