@@ -23,6 +23,8 @@ COPY requirements.txt /tmp/requirements.txt
 # Upgrade pip and install Python dependencies required by this template.
 RUN pip install --no-cache-dir --upgrade pip && \
     grep -v "SageAttention.git" /tmp/requirements.txt > /tmp/requirements.image.txt && \
+    sed -i -E '/^(torch|torchaudio|torchvision|triton)(==.*)?$/d' /tmp/requirements.image.txt && \
+    sed -i -E '/^SQLAlchemy(==.*)?$/d' /tmp/requirements.image.txt && \
     pip install --no-cache-dir -r /tmp/requirements.image.txt
 
 # Bundle the ComfyUI source tree into the container image.
