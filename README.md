@@ -43,7 +43,7 @@ Official guide:
 
 - Runpod account
 - Docker installed locally
-- Docker Hub account (or another registry Runpod can pull from)
+- Docker Hub account
 
 ### 2) Create a Dockerfile in this repo
 
@@ -106,11 +106,20 @@ In Runpod Console:
 
 1. Go to Templates -> New Template.
 2. Set Container Image to `YOUR_DOCKER_USERNAME/body-gen-comfyui:v1`.
+
 3. Container Disk: at least 30 GB recommended for this stack.
 4. Add HTTP port `8188` (ComfyUI).
 5. Add HTTP port `8888` (JupyterLab).
 6. Add TCP port `22` (SSH).
 7. Save Template.
+
+If your Docker Hub repository is private, configure registry auth in the template:
+
+1. Click `Select Registry Auth`.
+2. Registry: `docker.io`.
+3. Username: your Docker Hub username.
+4. Password: your Docker Hub access token.
+5. Save credentials and template.
 
 Template reference used for this project:
 
