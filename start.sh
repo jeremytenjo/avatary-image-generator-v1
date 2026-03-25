@@ -34,14 +34,34 @@ SAGE_PID=$!
 echo "SageAttention build started in background (PID: $SAGE_PID)"
 
 # Set the network volume path
-NETWORK_VOLUME="/workspace"
+NETWORK_VOLUME="${NETWORK_VOLUME:-/workspace}"
 URL="http://127.0.0.1:8188"
+BOOT_START_TS="$(date +%s)"
+LAST_STAGE_TS="$BOOT_START_TS"
+STARTUP_VOLUME_SEED_MODE="n/a"
+
+mark_stage() {
+    local stage_name="$1"
+    local now_ts
+    now_ts="$(date +%s)"
+    local step_elapsed=$((now_ts - LAST_STAGE_TS))
+    local total_elapsed=$((now_ts - BOOT_START_TS))
+    echo "[timing] stage=${stage_name} step_s=${step_elapsed} total_s=${total_elapsed}"
+    LAST_STAGE_TS="$now_ts"
+}
 
 # Check if NETWORK_VOLUME exists; if not, use root directory instead
 if [ ! -d "$NETWORK_VOLUME" ]; then
     echo "NETWORK_VOLUME directory '$NETWORK_VOLUME' does not exist. You are NOT using a network volume. Setting NETWORK_VOLUME to '/' (root directory)."
     NETWORK_VOLUME="/"
 fi
+
+STARTUP_TIMING_LOG="$NETWORK_VOLUME/startup_timing.log"
+if [ "$NETWORK_VOLUME" = "/" ]; then
+    STARTUP_TIMING_LOG="/tmp/startup_timing.log"
+fi
+
+mark_stage "volume_detected"
 
 # Optionally skip Jupyter when the base Runpod service already starts it.
 if [ "${START_JUPYTER:-1}" = "1" ]; then
@@ -56,17 +76,38 @@ else
     echo "Skipping JupyterLab startup in template script (START_JUPYTER=${START_JUPYTER})."
 fi
 
+mark_stage "jupyter_startup"
+
 COMFYUI_DIR="$NETWORK_VOLUME/ComfyUI"
 WORKFLOW_DIR="$NETWORK_VOLUME/ComfyUI/user/default/workflows"
 
 # Set the target directory
 CUSTOM_NODES_DIR="$NETWORK_VOLUME/ComfyUI/custom_nodes"
 
-if [ ! -d "$COMFYUI_DIR" ]; then
-    mv /ComfyUI "$COMFYUI_DIR"
+if [ "$NETWORK_VOLUME" = "/" ]; then
+    COMFYUI_DIR="/ComfyUI"
+    STARTUP_VOLUME_SEED_MODE="ephemeral"
 else
-    echo "Directory already exists, skipping move."
+    # Keep ComfyUI state on the network volume and seed files once.
+    mkdir -p "$COMFYUI_DIR"
+    BOOTSTRAP_MARKER="$COMFYUI_DIR/.image_seeded"
+    if [ "${FORCE_SYNC_TEMPLATE:-0}" = "1" ]; then
+        STARTUP_VOLUME_SEED_MODE="force-sync"
+        cp -an /ComfyUI/. "$COMFYUI_DIR"/
+        touch "$BOOTSTRAP_MARKER"
+    elif [ ! -f "$BOOTSTRAP_MARKER" ]; then
+        STARTUP_VOLUME_SEED_MODE="cold-seed"
+        cp -an /ComfyUI/. "$COMFYUI_DIR"/
+        touch "$BOOTSTRAP_MARKER"
+    else
+        STARTUP_VOLUME_SEED_MODE="warm-reuse"
+    fi
 fi
+
+WORKFLOW_DIR="$COMFYUI_DIR/user/default/workflows"
+CUSTOM_NODES_DIR="$COMFYUI_DIR/custom_nodes"
+
+mark_stage "comfyui_seed"
 
 pip install onnxruntime-gpu &
 
@@ -149,6 +190,8 @@ while pgrep -x "aria2c" > /dev/null; do
     sleep 5  # Check every 5 seconds
 done
 
+mark_stage "baseline_model_downloads"
+
 declare -A MODEL_CATEGORIES=(
     ["$NETWORK_VOLUME/ComfyUI/models/checkpoints"]="$CHECKPOINT_IDS_TO_DOWNLOAD"
     ["$NETWORK_VOLUME/ComfyUI/models/loras"]="$LORAS_IDS_TO_DOWNLOAD"
@@ -187,6 +230,8 @@ while pgrep -x "aria2c" > /dev/null; do
     sleep 5  # Check every 5 seconds
 done
 
+mark_stage "optional_model_downloads"
+
 
 echo "All models downloaded successfully"
 
@@ -197,8 +242,8 @@ cd /
 
 if [ "$change_preview_method" == "true" ]; then
     echo "Updating default preview method..."
-    sed -i '/id: *'"'"'VHS.LatentPreview'"'"'/,/defaultValue:/s/defaultValue: false/defaultValue: true/' $NETWORK_VOLUME/ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite/web/js/VHS.core.js
-    CONFIG_PATH="/ComfyUI/user/default/ComfyUI-Manager"
+    sed -i '/id: *'"'"'VHS.LatentPreview'"'"'/,/defaultValue:/s/defaultValue: false/defaultValue: true/' "$COMFYUI_DIR/custom_nodes/ComfyUI-VideoHelperSuite/web/js/VHS.core.js"
+    CONFIG_PATH="$COMFYUI_DIR/user/default/ComfyUI-Manager"
     CONFIG_FILE="$CONFIG_PATH/config.ini"
 
 # Ensure the directory exists
@@ -237,8 +282,12 @@ else
     echo "Skipping preview method update (change_preview_method is not 'true')."
 fi
 
+mark_stage "preview_and_manager_config"
+
 # Workspace as main working directory
-echo "cd $NETWORK_VOLUME" >> ~/.bashrc
+if ! grep -Fq "cd $NETWORK_VOLUME" ~/.bashrc; then
+    echo "cd $NETWORK_VOLUME" >> ~/.bashrc
+fi
 
 
 
@@ -248,6 +297,8 @@ for file in *.zip; do
     [ -f "$file" ] || continue
     mv "$file" "${file%.zip}.safetensors"
 done
+
+mark_stage "lora_rename"
 
 # Wait for SageAttention build to complete
 echo "Waiting for SageAttention build to complete..."
@@ -269,11 +320,13 @@ if [ -f /tmp/sage_build_done ]; then
     echo "✅ SageAttention build completed successfully!"
 fi
 
+mark_stage "sageattention"
+
 # Start ComfyUI
 
 echo "Starting ComfyUI"
 
-nohup python3 "$NETWORK_VOLUME/ComfyUI/main.py" --listen --use-sage-attention > "$NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log" 2>&1 &
+nohup python3 "$COMFYUI_DIR/main.py" --listen --use-sage-attention > "$NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log" 2>&1 &
 
     # Counter for timeout
     counter=0
@@ -294,5 +347,13 @@ nohup python3 "$NETWORK_VOLUME/ComfyUI/main.py" --listen --use-sage-attention > 
     if curl --silent --fail "$URL" --output /dev/null; then
         echo "🚀 ComfyUI is UP"
     fi
+
+BOOT_END_TS="$(date +%s)"
+BOOT_TOTAL_S=$((BOOT_END_TS - BOOT_START_TS))
+BOOT_TIMESTAMP="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+printf "%s pod=%s volume=%s seed=%s total_s=%s\n" \
+    "$BOOT_TIMESTAMP" "${RUNPOD_POD_ID:-unknown}" "$NETWORK_VOLUME" "$STARTUP_VOLUME_SEED_MODE" "$BOOT_TOTAL_S" \
+    | tee -a "$STARTUP_TIMING_LOG"
+echo "[timing] log_file=$STARTUP_TIMING_LOG"
 
     sleep infinity

@@ -116,6 +116,8 @@ Optional environment variables:
 
 - `CHECKPOINT_IDS_TO_DOWNLOAD`: comma-separated CivitAI model IDs
 - `LORAS_IDS_TO_DOWNLOAD`: comma-separated CivitAI model IDs
+- `NETWORK_VOLUME`: override persistent root path (default `/workspace`)
+- `FORCE_SYNC_TEMPLATE=1`: re-seed missing ComfyUI files from image into volume on startup
 
 ### 6) Deploy a Pod from the template
 
@@ -134,6 +136,7 @@ Optional environment variables:
 - If needed, check:
   - `/workspace/comfyui_<RUNPOD_POD_ID>_nohup.log`
   - `/tmp/sage_build.log`
+  - `/workspace/startup_timing.log` (or `/tmp/startup_timing.log` without network volume)
 
 ### 8) Versioning and updates
 
@@ -145,6 +148,8 @@ Optional environment variables:
 
 - Preferred persistent path: `/workspace`.
 - If `/workspace` does not exist, runtime path changes to `/`.
+- On first boot with a mounted network volume, the bundled `/ComfyUI` files are seeded once into `/workspace/ComfyUI` and tracked with a marker file.
+- On later boots, the existing volume copy is reused to avoid expensive cross-filesystem moves.
 - Models and outputs are therefore stored under either:
   - `/workspace/ComfyUI/...` (persistent with network volume), or
   - `/ComfyUI/...` (ephemeral without network volume).
@@ -187,6 +192,9 @@ The script probes `http://127.0.0.1:8188` to verify ComfyUI startup.
   - `/workspace/comfyui_<RUNPOD_POD_ID>_nohup.log` (or `/<...>` if no network volume)
 - SageAttention build log:
   - `/tmp/sage_build.log`
+- Startup timing log:
+  - `/workspace/startup_timing.log` (or `/tmp/startup_timing.log` without network volume)
+  - Includes per-boot timestamp, pod id, volume path, seed mode (`cold-seed`, `warm-reuse`, etc.), and total startup seconds.
 
 If SageAttention fails, startup continues and ComfyUI is still launched.
 
