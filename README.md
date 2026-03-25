@@ -124,7 +124,10 @@ Optional environment variables:
 1. Go to Pods -> Deploy.
 2. Choose your template.
 3. Select a GPU that matches your workload.
-4. Attach a network volume if you want persistent models/workflows (`/workspace`).
+4. Attach the network volume `avatary-body-gen` for persistent models/workflows at `/workspace`.
+
+- Volume URL: https://console.runpod.io/user/storage/i8zzrcicig
+
 5. Ensure `SSH Terminal Access` is checked in deployment options.
 6. Deploy.
 
@@ -147,6 +150,8 @@ Optional environment variables:
 ## Storage behavior
 
 - Preferred persistent path: `/workspace`.
+- Current development volume: `avatary-body-gen`.
+- Volume details page: https://console.runpod.io/user/storage/i8zzrcicig
 - If `/workspace` does not exist, runtime path changes to `/`.
 - On first boot with a mounted network volume, the bundled `/ComfyUI` files are seeded once into `/workspace/ComfyUI` and tracked with a marker file.
 - On later boots, the existing volume copy is reused to avoid expensive cross-filesystem moves.
