@@ -19,23 +19,34 @@ else
     echo "curl is already installed"
 fi
 
-# Start SageAttention build in the background
-echo "Starting SageAttention build..."
-(
-    export EXT_PARALLEL=4 NVCC_APPEND_FLAGS="--threads 8" MAX_JOBS=32
-    cd /tmp
-    git clone https://github.com/thu-ml/SageAttention.git
-    cd SageAttention
-    git reset --hard 68de379
-    pip install -e .
-    echo "SageAttention build completed" > /tmp/sage_build_done
-) > /tmp/sage_build.log 2>&1 &
-SAGE_PID=$!
-echo "SageAttention build started in background (PID: $SAGE_PID)"
+# Start SageAttention build in the background (optional)
+ENABLE_SAGE_ATTENTION="${ENABLE_SAGE_ATTENTION:-1}"
+SAGE_PID=""
+rm -f /tmp/sage_build_done /tmp/sage_build_failed
+if [ "$ENABLE_SAGE_ATTENTION" = "1" ]; then
+    echo "Starting SageAttention build..."
+    (
+        set -euo pipefail
+        export EXT_PARALLEL=4 NVCC_APPEND_FLAGS="--threads 8" MAX_JOBS=32
+        cd /tmp
+        rm -rf SageAttention
+        git clone --depth 1 https://github.com/thu-ml/SageAttention.git
+        cd SageAttention
+        git fetch --depth 1 origin 68de379
+        git checkout 68de379
+        pip install -e .
+        touch /tmp/sage_build_done
+    ) > /tmp/sage_build.log 2>&1 || touch /tmp/sage_build_failed &
+    SAGE_PID=$!
+    echo "SageAttention build started in background (PID: $SAGE_PID)"
+else
+    echo "Skipping SageAttention build (ENABLE_SAGE_ATTENTION=${ENABLE_SAGE_ATTENTION})."
+fi
 
 # Set the network volume path
 NETWORK_VOLUME="${NETWORK_VOLUME:-/workspace}"
-URL="http://127.0.0.1:8188"
+COMFYUI_PORT="${COMFYUI_PORT:-8188}"
+URL="http://127.0.0.1:${COMFYUI_PORT}"
 BOOT_START_TS="$(date +%s)"
 LAST_STAGE_TS="$BOOT_START_TS"
 STARTUP_VOLUME_SEED_MODE="n/a"
@@ -254,7 +265,12 @@ cd /
 
 if [ "$change_preview_method" == "true" ]; then
     echo "Updating default preview method..."
-    sed -i '/id: *'"'"'VHS.LatentPreview'"'"'/,/defaultValue:/s/defaultValue: false/defaultValue: true/' "$COMFYUI_DIR/custom_nodes/ComfyUI-VideoHelperSuite/web/js/VHS.core.js"
+    VHS_CORE_JS="$COMFYUI_DIR/custom_nodes/ComfyUI-VideoHelperSuite/web/js/VHS.core.js"
+    if [ -f "$VHS_CORE_JS" ]; then
+        sed -i '/id: *'"'"'VHS.LatentPreview'"'"'/,/defaultValue:/s/defaultValue: false/defaultValue: true/' "$VHS_CORE_JS"
+    else
+        echo "ComfyUI-VideoHelperSuite not found; skipping VHS preview patch."
+    fi
     CONFIG_PATH="$COMFYUI_DIR/user/default/ComfyUI-Manager"
     CONFIG_FILE="$CONFIG_PATH/config.ini"
 
@@ -312,28 +328,39 @@ done
 
 mark_stage "lora_rename"
 
-# Wait for SageAttention build to complete
-echo "Waiting for SageAttention build to complete..."
-sage_wait_elapsed=0
-while ! [ -f /tmp/sage_build_done ]; do
-    if ps -p $SAGE_PID > /dev/null 2>&1; then
+# Wait for SageAttention build to complete and only enable it if import works.
+SAGE_ATTENTION_READY=0
+if [ "$ENABLE_SAGE_ATTENTION" = "1" ]; then
+    echo "Waiting for SageAttention build to complete..."
+    sage_wait_elapsed=0
+    while true; do
+        if [ -f /tmp/sage_build_done ]; then
+            break
+        fi
+        if [ -f /tmp/sage_build_failed ]; then
+            break
+        fi
+        if [ -n "$SAGE_PID" ] && ! ps -p "$SAGE_PID" > /dev/null 2>&1; then
+            touch /tmp/sage_build_failed
+            break
+        fi
         if [ $((sage_wait_elapsed % LOG_INTERVAL_S)) -eq 0 ]; then
             echo "SageAttention build in progress..."
         fi
         sleep "$POLL_INTERVAL_S"
         sage_wait_elapsed=$((sage_wait_elapsed + POLL_INTERVAL_S))
-    else
-        # Process finished but no completion marker - check if it failed
-        if ! [ -f /tmp/sage_build_done ]; then
-            echo "⚠️  SageAttention build process ended unexpectedly. Check logs at /tmp/sage_build.log"
-            echo "Continuing with ComfyUI startup..."
-            break
-        fi
-    fi
-done
+    done
 
-if [ -f /tmp/sage_build_done ]; then
-    echo "✅ SageAttention build completed successfully!"
+    if [ -f /tmp/sage_build_done ] && python3 - <<'PY' >/dev/null 2>&1
+import sageattention  # noqa: F401
+PY
+    then
+        SAGE_ATTENTION_READY=1
+        echo "✅ SageAttention is installed and enabled."
+    else
+        echo "⚠️  SageAttention is unavailable. ComfyUI will start without --use-sage-attention."
+        echo "See /tmp/sage_build.log for details."
+    fi
 fi
 
 mark_stage "sageattention"
@@ -384,30 +411,43 @@ fi
 
 echo "Starting ComfyUI"
 
-nohup python3 "$COMFYUI_DIR/main.py" --listen --use-sage-attention > "$NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log" 2>&1 &
+COMFY_LOG_PATH="$NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log"
+COMFY_CMD=(python3 "$COMFYUI_DIR/main.py" --listen "0.0.0.0" --port "$COMFYUI_PORT")
+if [ "$SAGE_ATTENTION_READY" = "1" ]; then
+    COMFY_CMD+=(--use-sage-attention)
+fi
 
-    # Counter for timeout
-    counter=0
-    max_wait=45
-    comfy_status_log_interval=10
+nohup "${COMFY_CMD[@]}" > "$COMFY_LOG_PATH" 2>&1 &
+COMFY_PID=$!
 
-    until curl --silent --fail "$URL" --output /dev/null; do
-        if [ $counter -ge $max_wait ]; then
-            echo "ComfyUI should be running if not please refer to Avatary's discord channel's general support."
-            break
-        fi
+# Counter for timeout
+counter=0
+max_wait=90
+comfy_status_log_interval=10
 
-        if [ $((counter % comfy_status_log_interval)) -eq 0 ]; then
-            echo "ComfyUI starting up... logs: $NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log"
-        fi
-        sleep 2
-        counter=$((counter + 2))
-    done
-
-    # Only show success message if curl succeeded
-    if curl --silent --fail "$URL" --output /dev/null; then
-        echo "🚀 ComfyUI is UP"
+until curl --silent --fail "$URL" --output /dev/null; do
+    if ! ps -p "$COMFY_PID" > /dev/null 2>&1; then
+        echo "❌ ComfyUI process exited before becoming ready."
+        echo "Last 120 lines from $COMFY_LOG_PATH:"
+        tail -n 120 "$COMFY_LOG_PATH" || true
+        exit 1
     fi
+
+    if [ $counter -ge $max_wait ]; then
+        echo "❌ ComfyUI did not become reachable at $URL within ${max_wait}s."
+        echo "Last 120 lines from $COMFY_LOG_PATH:"
+        tail -n 120 "$COMFY_LOG_PATH" || true
+        exit 1
+    fi
+
+    if [ $((counter % comfy_status_log_interval)) -eq 0 ]; then
+        echo "ComfyUI starting up... logs: $COMFY_LOG_PATH"
+    fi
+    sleep 2
+    counter=$((counter + 2))
+done
+
+echo "🚀 ComfyUI is UP"
 
 BOOT_END_TS="$(date +%s)"
 BOOT_TOTAL_S=$((BOOT_END_TS - BOOT_START_TS))
@@ -417,4 +457,4 @@ printf "%s pod=%s volume=%s seed=%s total_s=%s\n" \
     | tee -a "$STARTUP_TIMING_LOG"
 echo "[timing] log_file=$STARTUP_TIMING_LOG"
 
-    sleep infinity
+sleep infinity
