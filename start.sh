@@ -338,6 +338,48 @@ fi
 
 mark_stage "sageattention"
 
+# Wait for CUDA to become available before launching ComfyUI.
+wait_for_cuda_ready() {
+    local timeout_s="${GPU_READY_TIMEOUT_S:-180}"
+    local poll_s="${GPU_READY_POLL_S:-5}"
+    local elapsed_s=0
+    local log_interval_s=30
+
+    echo "Checking CUDA readiness (timeout=${timeout_s}s, poll=${poll_s}s)..."
+
+    while [ "$elapsed_s" -lt "$timeout_s" ]; do
+        if python3 - <<'PY' >/dev/null 2>&1
+import torch
+ok = torch.cuda.is_available() and torch.cuda.device_count() > 0
+if ok:
+    _ = torch.cuda.current_device()
+raise SystemExit(0 if ok else 1)
+PY
+        then
+            echo "CUDA is ready."
+            return 0
+        fi
+
+        if [ $((elapsed_s % log_interval_s)) -eq 0 ]; then
+            echo "Waiting for CUDA/GPU runtime to initialize..."
+            if command -v nvidia-smi >/dev/null 2>&1; then
+                nvidia-smi -L 2>/dev/null || true
+            fi
+        fi
+
+        sleep "$poll_s"
+        elapsed_s=$((elapsed_s + poll_s))
+    done
+
+    echo "⚠️  CUDA was not ready after ${timeout_s}s. Continuing startup; ComfyUI may fail if GPU runtime is unavailable."
+    return 1
+}
+
+if [ "${WAIT_FOR_CUDA_READY:-1}" = "1" ]; then
+    wait_for_cuda_ready || true
+    mark_stage "cuda_ready_wait"
+fi
+
 # Start ComfyUI
 
 echo "Starting ComfyUI"
