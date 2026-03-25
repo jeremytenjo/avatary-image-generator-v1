@@ -351,7 +351,7 @@ nohup python3 "$COMFYUI_DIR/main.py" --listen --use-sage-attention > "$NETWORK_V
 
     until curl --silent --fail "$URL" --output /dev/null; do
         if [ $counter -ge $max_wait ]; then
-            echo "ComfyUI should be running if not please refer to Aiorbust's discord channel's general support."
+            echo "ComfyUI should be running if not please refer to Avatary's discord channel's general support."
             break
         fi
 
