@@ -288,4 +288,3 @@ nohup python3 "$NETWORK_VOLUME/ComfyUI/main.py" --listen --use-sage-attention > 
     fi
 
     sleep infinity
-fi
