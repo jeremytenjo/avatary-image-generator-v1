@@ -172,6 +172,28 @@ download_model() {
     echo "Download started in background for $destination_file"
 }
 
+ensure_required_model() {
+    local url="$1"
+    local full_path="$2"
+    local min_size_bytes="${3:-1048576}"
+    local destination_dir
+    destination_dir="$(dirname "$full_path")"
+    mkdir -p "$destination_dir"
+
+    if [ -f "$full_path" ]; then
+        local size_bytes
+        size_bytes=$(stat -f%z "$full_path" 2>/dev/null || stat -c%s "$full_path" 2>/dev/null || echo 0)
+        if [ "$size_bytes" -ge "$min_size_bytes" ]; then
+            return 0
+        fi
+        echo "⚠️  Required model too small ($size_bytes bytes), re-downloading: $full_path"
+        rm -f "$full_path"
+    fi
+
+    echo "📥 Ensuring required model: $(basename "$full_path")"
+    curl -fL --retry 5 --retry-delay 3 -o "$full_path" "$url"
+}
+
 # Define base paths
 # Define base paths (Ensure $NETWORK_VOLUME is set in your environment)
 DIFFUSION_MODELS_DIR="$NETWORK_VOLUME/ComfyUI/models/diffusion_models"
@@ -265,6 +287,10 @@ mark_stage "optional_model_downloads"
 echo "All models downloaded successfully"
 
 echo "All downloads completed"
+
+# Ensure critical Impact models exist before ComfyUI starts.
+ensure_required_model "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth" "$SAMS_DIR/sam_vit_b_01ec64.pth" 50000000
+ensure_required_model "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt" "$ULTRALYTICS_BBOX_DIR/face_yolov8m.pt" 5000000
 
 # Ensure the file exists in the current directory before moving it
 cd /
