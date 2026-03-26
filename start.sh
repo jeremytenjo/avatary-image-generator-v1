@@ -153,6 +153,7 @@ ensure_custom_node_repo "ComfyUI-SAM3" "https://github.com/PozzettiAndrea/ComfyU
 ensure_custom_node_repo "was-node-suite-comfyui" "https://github.com/WASasquatch/was-node-suite-comfyui.git"
 ensure_custom_node_repo "ComfyUI-JoyCaption" "https://github.com/1038lab/ComfyUI-JoyCaption.git"
 ensure_custom_node_repo "ComfyUI-GGUF" "https://github.com/city96/ComfyUI-GGUF.git"
+ensure_custom_node_repo "ComfyUI-Inpaint-CropAndStitch" "https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch.git"
 
 mark_stage "required_custom_nodes"
 
@@ -226,6 +227,34 @@ ensure_required_model() {
     curl -fL --retry 5 --retry-delay 3 -o "$full_path" "$url"
 }
 
+ensure_hf_snapshot() {
+    local repo_id="$1"
+    local target_dir="$2"
+    local marker_file="${3:-config.json}"
+
+    mkdir -p "$target_dir"
+
+    if [ -f "$target_dir/$marker_file" ]; then
+        echo "✅ Hugging Face snapshot already present: $repo_id"
+        return 0
+    fi
+
+    echo "📥 Ensuring Hugging Face snapshot: $repo_id"
+    python3 - "$repo_id" "$target_dir" <<'PY'
+import sys
+from huggingface_hub import snapshot_download
+
+repo_id = sys.argv[1]
+target_dir = sys.argv[2]
+
+snapshot_download(
+    repo_id=repo_id,
+    local_dir=target_dir,
+    local_files_only=False,
+)
+PY
+}
+
 # Define base paths
 # Define base paths (Ensure $NETWORK_VOLUME is set in your environment)
 DIFFUSION_MODELS_DIR="$NETWORK_VOLUME/ComfyUI/models/diffusion_models"
@@ -237,6 +266,8 @@ UPSCALE_DIR="$NETWORK_VOLUME/ComfyUI/models/upscale_models"
 LATENT_UPSCALE_DIR="$NETWORK_VOLUME/ComfyUI/models/latent_upscale_models"
 SAMS_DIR="$NETWORK_VOLUME/ComfyUI/models/sams"
 ULTRALYTICS_BBOX_DIR="$NETWORK_VOLUME/ComfyUI/models/ultralytics/bbox"
+SAM3_DIR="$NETWORK_VOLUME/ComfyUI/models/sam3"
+LLM_DIR="$NETWORK_VOLUME/ComfyUI/models/LLM"
 
 echo "📦 Starting model downloads..."
 
@@ -253,11 +284,12 @@ download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/breast_s
 download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/bresat_sag_slider.safetensors" "$LORAS_DIR/bresat_sag_slider.safetensors"
 download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/waist_slider_xl.safetensors" "$LORAS_DIR/waist_slider_xl.safetensors"
 download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/leak_core.safetensors" "$LORAS_DIR/leak_core.safetensors"
-
-# Impact Pack defaults required by SAMLoader and UltralyticsDetectorProvider workflows.
 download_model "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth" "$SAMS_DIR/sam_vit_b_01ec64.pth"
 download_model "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt" "$ULTRALYTICS_BBOX_DIR/face_yolov8m.pt"
-
+download_model "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_turbo.safetensors"
+download_model "https://huggingface.co/dci05049/z-image-lora/resolve/main/z_image_vae.safetensors" "$VAE_DIR/z_image_vae.safetensors"
+download_model "https://huggingface.co/jeremyhola/LORAs/resolve/main/aiorbust/nsfw/Z-Image-AbliteratedV1.f16.safetensors" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.safetensors"
+download_model "https://huggingface.co/apozz/sam3-safetensors/resolve/main/sam3.safetensors" "$SAM3_DIR/sam3.safetensors"
 
 # Keep checking until no aria2c processes are running
 download_wait_elapsed=0
@@ -323,6 +355,14 @@ echo "All downloads completed"
 # Ensure critical Impact models exist before ComfyUI starts.
 ensure_required_model "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth" "$SAMS_DIR/sam_vit_b_01ec64.pth" 50000000
 ensure_required_model "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt" "$ULTRALYTICS_BBOX_DIR/face_yolov8m.pt" 5000000
+ensure_required_model "https://huggingface.co/apozz/sam3-safetensors/resolve/main/sam3.safetensors" "$SAM3_DIR/sam3.safetensors" 1000000000
+
+# Optional prefetch for JoyCaption model used by Head-Swap-V1.
+if [ "${PREFETCH_JOYCAPTION_MODEL:-0}" = "1" ]; then
+    ensure_hf_snapshot "1038lab/llama-joycaption-beta-one" "$LLM_DIR/llama-joycaption-beta-one"
+else
+    echo "ℹ️  PREFETCH_JOYCAPTION_MODEL=0; JoyCaption model will download on first use."
+fi
 
 # Ensure the file exists in the current directory before moving it
 cd /
