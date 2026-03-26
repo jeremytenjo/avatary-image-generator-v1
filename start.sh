@@ -157,6 +157,19 @@ ensure_custom_node_repo "ComfyUI-Inpaint-CropAndStitch" "https://github.com/lque
 
 mark_stage "required_custom_nodes"
 
+install_custom_node_requirements() {
+    local node_dir="$1"
+    local requirements_file="$node_dir/requirements.txt"
+
+    if [ -f "$requirements_file" ]; then
+        echo "📦 Installing custom node requirements: $requirements_file"
+        python3 -m pip install --no-cache-dir -r "$requirements_file"
+    fi
+}
+
+# Fix missing 'gguf' import (required by ComfyUI-GGUF and transitively by ComfyUI-NAG).
+install_custom_node_requirements "$CUSTOM_NODES_DIR/ComfyUI-GGUF"
+
 pip install onnxruntime-gpu &
 
 
