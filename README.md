@@ -85,20 +85,20 @@ Notes:
 Use `linux/amd64` to match Runpod infra (important on Apple Silicon):
 
 ```bash
-docker build --platform linux/amd64 -t YOUR_DOCKER_USERNAME/body-gen-comfyui:v1 .
+docker build --platform linux/amd64 -t YOUR_DOCKER_USERNAME/avatary-content-generator:v1 .
 ```
 
 Optional quick smoke test:
 
 ```bash
-docker run --rm -it --platform linux/amd64 YOUR_DOCKER_USERNAME/body-gen-comfyui:v1 /bin/bash
+docker run --rm -it --platform linux/amd64 YOUR_DOCKER_USERNAME/avatary-content-generator:v1 /bin/bash
 ```
 
 ### 4) Push image to Docker Hub
 
 ```bash
 docker login
-docker push YOUR_DOCKER_USERNAME/body-gen-comfyui:v1
+docker push YOUR_DOCKER_USERNAME/avatary-content-generator:v1
 ```
 
 Optional helper script for versioned publishes:
@@ -124,7 +124,7 @@ Tips:
 In Runpod Console:
 
 1. Go to Templates -> New Template.
-2. Set Container Image to `YOUR_DOCKER_USERNAME/body-gen-comfyui:v1`.
+2. Set Container Image to `YOUR_DOCKER_USERNAME/avatary-content-generator:v1`.
 
 3. Container Disk: at least 30 GB recommended for this stack.
 4. Add HTTP port `8188` (ComfyUI).
