@@ -19,55 +19,34 @@ else
     echo "curl is already installed"
 fi
 
+# Start SageAttention build in the background
+echo "Starting SageAttention build..."
+(
+    export EXT_PARALLEL=4 NVCC_APPEND_FLAGS="--threads 8" MAX_JOBS=32
+    cd /tmp
+    git clone https://github.com/thu-ml/SageAttention.git
+    cd SageAttention
+    git reset --hard 68de379
+    pip install -e .
+    echo "SageAttention build completed" > /tmp/sage_build_done
+) > /tmp/sage_build.log 2>&1 &
+SAGE_PID=$!
+echo "SageAttention build started in background (PID: $SAGE_PID)"
+
 # Set the network volume path
-NETWORK_VOLUME="${NETWORK_VOLUME:-/workspace}"
-COMFYUI_PORT="${COMFYUI_PORT:-8188}"
-URL="http://127.0.0.1:${COMFYUI_PORT}"
-BOOT_START_TS="$(date +%s)"
-LAST_STAGE_TS="$BOOT_START_TS"
-STARTUP_VOLUME_SEED_MODE="n/a"
-
-mark_stage() {
-    local stage_name="$1"
-    local now_ts
-    now_ts="$(date +%s)"
-    local step_elapsed=$((now_ts - LAST_STAGE_TS))
-    local total_elapsed=$((now_ts - BOOT_START_TS))
-    echo "[timing] stage=${stage_name} step_s=${step_elapsed} total_s=${total_elapsed}"
-    LAST_STAGE_TS="$now_ts"
-}
-
-# Polling and log-throttle intervals to keep startup output readable.
-POLL_INTERVAL_S=5
-LOG_INTERVAL_S=30
+NETWORK_VOLUME="/workspace"
+URL="http://127.0.0.1:8188"
 
 # Check if NETWORK_VOLUME exists; if not, use root directory instead
 if [ ! -d "$NETWORK_VOLUME" ]; then
     echo "NETWORK_VOLUME directory '$NETWORK_VOLUME' does not exist. You are NOT using a network volume. Setting NETWORK_VOLUME to '/' (root directory)."
     NETWORK_VOLUME="/"
-fi
-
-STARTUP_TIMING_LOG="$NETWORK_VOLUME/startup_timing.log"
-if [ "$NETWORK_VOLUME" = "/" ]; then
-    STARTUP_TIMING_LOG="/tmp/startup_timing.log"
-fi
-
-mark_stage "volume_detected"
-
-# Optionally skip Jupyter when the base Runpod service already starts it.
-if [ "${START_JUPYTER:-1}" = "1" ]; then
-    if [ "$NETWORK_VOLUME" = "/" ]; then
-        echo "NETWORK_VOLUME directory doesn't exist. Starting JupyterLab on root directory..."
-        jupyter-lab --ip=0.0.0.0 --allow-root --no-browser --NotebookApp.token='' --NotebookApp.password='' --ServerApp.allow_origin='*' --ServerApp.allow_credentials=True --notebook-dir=/ &
-    else
-        echo "NETWORK_VOLUME directory exists. Starting JupyterLab..."
-        jupyter-lab --ip=0.0.0.0 --allow-root --no-browser --NotebookApp.token='' --NotebookApp.password='' --ServerApp.allow_origin='*' --ServerApp.allow_credentials=True --notebook-dir=/workspace &
-    fi
+    echo "NETWORK_VOLUME directory doesn't exist. Starting JupyterLab on root directory..."
+    jupyter-lab --ip=0.0.0.0 --allow-root --no-browser --NotebookApp.token='' --NotebookApp.password='' --ServerApp.allow_origin='*' --ServerApp.allow_credentials=True --notebook-dir=/ &
 else
-    echo "Skipping JupyterLab startup in template script (START_JUPYTER=${START_JUPYTER})."
+    echo "NETWORK_VOLUME directory exists. Starting JupyterLab..."
+    jupyter-lab --ip=0.0.0.0 --allow-root --no-browser --NotebookApp.token='' --NotebookApp.password='' --ServerApp.allow_origin='*' --ServerApp.allow_credentials=True --notebook-dir=/workspace &
 fi
-
-mark_stage "jupyter_startup"
 
 COMFYUI_DIR="$NETWORK_VOLUME/ComfyUI"
 WORKFLOW_DIR="$NETWORK_VOLUME/ComfyUI/user/default/workflows"
@@ -75,103 +54,11 @@ WORKFLOW_DIR="$NETWORK_VOLUME/ComfyUI/user/default/workflows"
 # Set the target directory
 CUSTOM_NODES_DIR="$NETWORK_VOLUME/ComfyUI/custom_nodes"
 
-if [ "$NETWORK_VOLUME" = "/" ]; then
-    COMFYUI_DIR="/ComfyUI"
-    STARTUP_VOLUME_SEED_MODE="ephemeral"
+if [ ! -d "$COMFYUI_DIR" ]; then
+    mv /ComfyUI "$COMFYUI_DIR"
 else
-    # Keep ComfyUI state on the network volume and seed files once.
-    mkdir -p "$COMFYUI_DIR"
-    BOOTSTRAP_MARKER="$COMFYUI_DIR/.image_seeded"
-    if [ "${UPDATE_COMFYUI_FROM_IMAGE:-0}" = "1" ]; then
-        # Update ComfyUI code from the image while preserving persistent runtime data.
-        STARTUP_VOLUME_SEED_MODE="image-update"
-        rsync -a --delete \
-            --exclude "models/" \
-            --exclude "output/" \
-            --exclude "input/" \
-            --exclude "temp/" \
-            --exclude "user/" \
-            --exclude "custom_nodes/" \
-            /ComfyUI/ "$COMFYUI_DIR"/
-        touch "$BOOTSTRAP_MARKER"
-    elif [ "${FORCE_SYNC_TEMPLATE:-0}" = "1" ]; then
-        STARTUP_VOLUME_SEED_MODE="force-sync"
-        cp -an /ComfyUI/. "$COMFYUI_DIR"/
-        touch "$BOOTSTRAP_MARKER"
-    elif [ ! -f "$BOOTSTRAP_MARKER" ]; then
-        STARTUP_VOLUME_SEED_MODE="cold-seed"
-        cp -an /ComfyUI/. "$COMFYUI_DIR"/
-        touch "$BOOTSTRAP_MARKER"
-    else
-        STARTUP_VOLUME_SEED_MODE="warm-reuse"
-    fi
+    echo "Directory already exists, skipping move."
 fi
-
-WORKFLOW_DIR="$COMFYUI_DIR/user/default/workflows"
-CUSTOM_NODES_DIR="$COMFYUI_DIR/custom_nodes"
-
-mark_stage "comfyui_seed"
-
-ensure_custom_node_repo() {
-    local repo_dir_name="$1"
-    local repo_url="$2"
-    local target_dir="$CUSTOM_NODES_DIR/$repo_dir_name"
-    local image_repo_dir="/ComfyUI/custom_nodes/$repo_dir_name"
-
-    if [ -d "$target_dir" ]; then
-        return 0
-    fi
-
-    mkdir -p "$CUSTOM_NODES_DIR"
-
-    if [ -d "$image_repo_dir" ]; then
-        echo "📦 Adding missing custom node from image: $repo_dir_name"
-        cp -a "$image_repo_dir" "$target_dir"
-        return 0
-    fi
-
-    if [ -n "$repo_url" ]; then
-        echo "📥 Cloning missing custom node: $repo_dir_name"
-        (cd "$CUSTOM_NODES_DIR" && git clone "$repo_url" "$repo_dir_name")
-        return $?
-    fi
-
-    echo "⚠️  Missing custom node '$repo_dir_name' and no source available."
-    return 1
-}
-
-# Ensure critical workflow custom nodes exist regardless of volume mode.
-ensure_custom_node_repo "rgthree-comfy" "https://github.com/rgthree/rgthree-comfy.git"
-ensure_custom_node_repo "ComfyUI-GlifNodes" "https://github.com/glifxyz/ComfyUI-GlifNodes.git"
-ensure_custom_node_repo "ComfyUI-Impact-Pack" "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git"
-ensure_custom_node_repo "ComfyUI-Impact-Subpack" "https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git"
-ensure_custom_node_repo "cg-use-everywhere" "https://github.com/chrisgoringe/cg-use-everywhere.git"
-ensure_custom_node_repo "ComfyUI_essentials" "https://github.com/cubiq/ComfyUI_essentials.git"
-ensure_custom_node_repo "Comfyui-NAG" "https://github.com/jeremytenjo/ComfyUI-NAG"
-ensure_custom_node_repo "comfyui-inspire-pack" "https://github.com/ltdrdata/ComfyUI-Inspire-Pack.git"
-ensure_custom_node_repo "ComfyUI-SAM3" "https://github.com/PozzettiAndrea/ComfyUI-SAM3.git"
-ensure_custom_node_repo "was-node-suite-comfyui" "https://github.com/WASasquatch/was-node-suite-comfyui.git"
-ensure_custom_node_repo "ComfyUI-JoyCaption" "https://github.com/1038lab/ComfyUI-JoyCaption.git"
-ensure_custom_node_repo "ComfyUI-GGUF" "https://github.com/city96/ComfyUI-GGUF.git"
-ensure_custom_node_repo "ComfyUI-Inpaint-CropAndStitch" "https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch.git"
-
-mark_stage "required_custom_nodes"
-
-
-install_custom_node_requirements() {
-    local node_dir="$1"
-    local requirements_file="$node_dir/requirements.txt"
-
-    if [ -f "$requirements_file" ]; then
-        echo "📦 Installing custom node requirements: $requirements_file"
-        python3 -m pip install --no-cache-dir -r "$requirements_file"
-    fi
-}
-
-# Fix missing 'gguf' import (required by ComfyUI-GGUF and transitively by ComfyUI-NAG).
-install_custom_node_requirements "$CUSTOM_NODES_DIR/ComfyUI-GGUF"
-# Fix missing 'ftfy' import required by ComfyUI-SAM3 (LoadSAM3Model).
-install_custom_node_requirements "$CUSTOM_NODES_DIR/ComfyUI-SAM3"
 
 pip install onnxruntime-gpu &
 
@@ -182,93 +69,42 @@ export change_preview_method="true"
 # Change to the directory
 cd "$CUSTOM_NODES_DIR" || exit 1
 
+
 # Function to download a model using huggingface-cli
 download_model() {
     local url="$1"
     local full_path="$2"
+    local hf_token="your_hf_token_here" # Best to pass this as a 3rd argument or env var
 
     local destination_dir=$(dirname "$full_path")
     local destination_file=$(basename "$full_path")
 
     mkdir -p "$destination_dir"
 
-    # Simple corruption check: file < 10MB or .aria2 files
+    # Corruption check
     if [ -f "$full_path" ]; then
         local size_bytes=$(stat -f%z "$full_path" 2>/dev/null || stat -c%s "$full_path" 2>/dev/null || echo 0)
-        local size_mb=$((size_bytes / 1024 / 1024))
-
-        if [ "$size_bytes" -lt 10485760 ]; then  # Less than 10MB
-            echo "🗑️  Deleting corrupted file (${size_mb}MB < 10MB): $full_path"
+        if [ "$size_bytes" -lt 10485760 ]; then
+            echo "🗑️  Deleting corrupted file: $full_path"
             rm -f "$full_path"
         else
-            echo "✅ $destination_file already exists (${size_mb}MB), skipping download."
+            echo "✅ $destination_file already exists, skipping."
             return 0
         fi
     fi
 
-    # Check for and remove .aria2 control files
-    if [ -f "${full_path}.aria2" ]; then
-        echo "🗑️  Deleting .aria2 control file: ${full_path}.aria2"
-        rm -f "${full_path}.aria2"
-        rm -f "$full_path"  # Also remove any partial file
-    fi
+    # Cleanup aria2 control files
+    rm -f "${full_path}.aria2"
 
-    echo "📥 Downloading $destination_file to $destination_dir..."
-
-    # Download without falloc (since it's not supported in your environment)
-    aria2c -x 16 -s 16 -k 1M --continue=true -d "$destination_dir" -o "$destination_file" "$url" &
+    echo "📥 Downloading $destination_file..."
+    aria2c -x 16 -s 16 -k 1M \
+        --header="Authorization: Bearer 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" \
+        --continue=true \
+        -d "$destination_dir" \
+        -o "$destination_file" \
+        "$url"
 
     echo "Download started in background for $destination_file"
-}
-
-ensure_required_model() {
-    local url="$1"
-    local full_path="$2"
-    local min_size_bytes="${3:-1048576}"
-    local destination_dir
-    destination_dir="$(dirname "$full_path")"
-    mkdir -p "$destination_dir"
-
-    if [ -f "$full_path" ]; then
-        local size_bytes
-        size_bytes=$(stat -f%z "$full_path" 2>/dev/null || stat -c%s "$full_path" 2>/dev/null || echo 0)
-        if [ "$size_bytes" -ge "$min_size_bytes" ]; then
-            return 0
-        fi
-        echo "⚠️  Required model too small ($size_bytes bytes), re-downloading: $full_path"
-        rm -f "$full_path"
-    fi
-
-    echo "📥 Ensuring required model: $(basename "$full_path")"
-    curl -fL --retry 5 --retry-delay 3 -o "$full_path" "$url"
-}
-
-ensure_hf_snapshot() {
-    local repo_id="$1"
-    local target_dir="$2"
-    local marker_file="${3:-config.json}"
-
-    mkdir -p "$target_dir"
-
-    if [ -f "$target_dir/$marker_file" ]; then
-        echo "✅ Hugging Face snapshot already present: $repo_id"
-        return 0
-    fi
-
-    echo "📥 Ensuring Hugging Face snapshot: $repo_id"
-    python3 - "$repo_id" "$target_dir" <<'PY'
-import sys
-from huggingface_hub import snapshot_download
-
-repo_id = sys.argv[1]
-target_dir = sys.argv[2]
-
-snapshot_download(
-    repo_id=repo_id,
-    local_dir=target_dir,
-    local_files_only=False,
-)
-PY
 }
 
 # Define base paths
@@ -280,44 +116,38 @@ LORAS_DIR="$NETWORK_VOLUME/ComfyUI/models/loras"
 CHECKPOINTS_DIR="$NETWORK_VOLUME/ComfyUI/models/checkpoints"
 UPSCALE_DIR="$NETWORK_VOLUME/ComfyUI/models/upscale_models"
 LATENT_UPSCALE_DIR="$NETWORK_VOLUME/ComfyUI/models/latent_upscale_models"
-SAMS_DIR="$NETWORK_VOLUME/ComfyUI/models/sams"
-ULTRALYTICS_BBOX_DIR="$NETWORK_VOLUME/ComfyUI/models/ultralytics/bbox"
-SAM3_DIR="$NETWORK_VOLUME/ComfyUI/models/sam3"
-LLM_DIR="$NETWORK_VOLUME/ComfyUI/models/LLM"
 
 echo "📦 Starting model downloads..."
 
-download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/lustify_endgame.safetensors" "$CHECKPOINTS_DIR/lustify_endgame.safetensors"
-download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/lustify-ggpwp.safetensors" "$CHECKPOINTS_DIR/lustify-ggpwp.safetensors"
-download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/lustify_olt.safetensors" "$CHECKPOINTS_DIR/lustify_olt.safetensors"
-download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/pony_diffusion_v6.safetensors" "$CHECKPOINTS_DIR/pony_diffusion_v6.safetensors"
-download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/1x-ITF-SkinDiffDetail-Lite-v1.pth" "$UPSCALE_DIR/1x-ITF-SkinDiffDetail-Lite-v1.pth"
-download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/1xSkinContrast-High-SuperUltraCompact.pth" "$UPSCALE_DIR/1xSkinContrast-High-SuperUltraCompact.pth"
-download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/4xNMKDSuperscale_4xNMKDSuperscale.pt" "$UPSCALE_DIR/4xNMKDSuperscale_4xNMKDSuperscale.pt"
-download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/dmd2_sdxl_4step_lora.safetensors" "$LORAS_DIR/dmd2_sdxl_4step_lora.safetensors"
-download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/leak_core.safetensors" "$LORAS_DIR/leak_core.safetensors"
-download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/breast_size_slider.safetensors" "$LORAS_DIR/breast_size_slider.safetensors"
-download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/bresat_sag_slider.safetensors" "$LORAS_DIR/bresat_sag_slider.safetensors"
-download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/waist_slider_xl.safetensors" "$LORAS_DIR/waist_slider_xl.safetensors"
-download_model "https://huggingface.co/dci05049/spicy-sdxl/resolve/main/leak_core.safetensors" "$LORAS_DIR/leak_core.safetensors"
-download_model "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth" "$SAMS_DIR/sam_vit_b_01ec64.pth"
-download_model "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt" "$ULTRALYTICS_BBOX_DIR/face_yolov8m.pt"
+
+download_model "https://huggingface.co/Comfy-Org/z_image/resolve/main/split_files/diffusion_models/z_image_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_bf16.safetensors"
+
 download_model "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_turbo.safetensors"
+
+download_model "https://huggingface.co/aiorbust/z-image-nsfw/resolve/main/z-image-turbo-nsfw.safetensors" "$DIFFUSION_MODELS_DIR/z-image-turbo-nsfw.safetensors"
+
+download_model "https://huggingface.co/dci05049/z-image-lora/resolve/main/instagram_zimageturbo.safetensors" "$LORAS_DIR/instagram_zimageturbo.safetensors"
+
+download_model "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors" "$VAE_DIR/ae.safetensors"
+
 download_model "https://huggingface.co/dci05049/z-image-lora/resolve/main/z_image_vae.safetensors" "$VAE_DIR/z_image_vae.safetensors"
-download_model "https://huggingface.co/jeremyhola/LORAs/resolve/main/aiorbust/nsfw/Z-Image-AbliteratedV1.f16.safetensors" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.safetensors"
-download_model "https://huggingface.co/apozz/sam3-safetensors/resolve/main/sam3.safetensors" "$SAM3_DIR/sam3.safetensors"
+
+download_model "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors" "$TEXT_ENCODERS_DIR/qwen_3_4b.safetensors"
+
+download_model "hhttps://huggingface.co/BennyDaBall/Qwen3-4b-Z-Image-Turbo-AbliteratedV1/resolve/main/Z-Image-AbliteratedV1.f16.gguf" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.gguf"
+
+download_model "https://huggingface.co/aiorbust/z-image-nsfw/resolve/main/Z-Image-AbliteratedV1.f16.safetensors" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.safetensors"
+
+download_model "https://huggingface.co/BennyDaBall/Qwen3-4b-Z-Image-Engineer-V4/resolve/main/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf" "$TEXT_ENCODERS_DIR/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf"
+
+download_model "https://huggingface.co/dci05049/z-image-lora/resolve/main/Sally_Lokr.safetensors" "$LORAS_DIR/Sally_Lokr.safetensors"
+
 
 # Keep checking until no aria2c processes are running
-download_wait_elapsed=0
 while pgrep -x "aria2c" > /dev/null; do
-    if [ $((download_wait_elapsed % LOG_INTERVAL_S)) -eq 0 ]; then
-        echo "Models are downloading (in progress)..."
-    fi
-    sleep "$POLL_INTERVAL_S"
-    download_wait_elapsed=$((download_wait_elapsed + POLL_INTERVAL_S))
+    echo "Models are downloading (In Progress)"
+    sleep 5  # Check every 5 seconds
 done
-
-mark_stage "baseline_model_downloads"
 
 declare -A MODEL_CATEGORIES=(
     ["$NETWORK_VOLUME/ComfyUI/models/checkpoints"]="$CHECKPOINT_IDS_TO_DOWNLOAD"
@@ -352,46 +182,23 @@ echo "Scheduled $download_count downloads in background"
 
 # Wait for all downloads to complete
 echo "Waiting for downloads to complete..."
-optional_download_wait_elapsed=0
 while pgrep -x "aria2c" > /dev/null; do
-    if [ $((optional_download_wait_elapsed % LOG_INTERVAL_S)) -eq 0 ]; then
-        echo "LoRA downloads still in progress..."
-    fi
-    sleep "$POLL_INTERVAL_S"
-    optional_download_wait_elapsed=$((optional_download_wait_elapsed + POLL_INTERVAL_S))
+    echo "🔽 LoRA Downloads still in progress..."
+    sleep 5  # Check every 5 seconds
 done
-
-mark_stage "optional_model_downloads"
 
 
 echo "All models downloaded successfully"
 
 echo "All downloads completed"
 
-# Ensure critical Impact models exist before ComfyUI starts.
-ensure_required_model "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth" "$SAMS_DIR/sam_vit_b_01ec64.pth" 50000000
-ensure_required_model "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt" "$ULTRALYTICS_BBOX_DIR/face_yolov8m.pt" 5000000
-ensure_required_model "https://huggingface.co/apozz/sam3-safetensors/resolve/main/sam3.safetensors" "$SAM3_DIR/sam3.safetensors" 1000000000
-
-# Optional prefetch for JoyCaption model used by Head-Swap-V1.
-if [ "${PREFETCH_JOYCAPTION_MODEL:-0}" = "1" ]; then
-    ensure_hf_snapshot "1038lab/llama-joycaption-beta-one" "$LLM_DIR/llama-joycaption-beta-one"
-else
-    echo "ℹ️  PREFETCH_JOYCAPTION_MODEL=0; JoyCaption model will download on first use."
-fi
-
 # Ensure the file exists in the current directory before moving it
 cd /
 
 if [ "$change_preview_method" == "true" ]; then
     echo "Updating default preview method..."
-    VHS_CORE_JS="$COMFYUI_DIR/custom_nodes/ComfyUI-VideoHelperSuite/web/js/VHS.core.js"
-    if [ -f "$VHS_CORE_JS" ]; then
-        sed -i '/id: *'"'"'VHS.LatentPreview'"'"'/,/defaultValue:/s/defaultValue: false/defaultValue: true/' "$VHS_CORE_JS"
-    else
-        echo "ComfyUI-VideoHelperSuite not found; skipping VHS preview patch."
-    fi
-    CONFIG_PATH="$COMFYUI_DIR/user/default/ComfyUI-Manager"
+    sed -i '/id: *'"'"'VHS.LatentPreview'"'"'/,/defaultValue:/s/defaultValue: false/defaultValue: true/' $NETWORK_VOLUME/ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite/web/js/VHS.core.js
+    CONFIG_PATH="/ComfyUI/user/default/ComfyUI-Manager"
     CONFIG_FILE="$CONFIG_PATH/config.ini"
 
 # Ensure the directory exists
@@ -430,12 +237,8 @@ else
     echo "Skipping preview method update (change_preview_method is not 'true')."
 fi
 
-mark_stage "preview_and_manager_config"
-
 # Workspace as main working directory
-if ! grep -Fq "cd $NETWORK_VOLUME" ~/.bashrc; then
-    echo "cd $NETWORK_VOLUME" >> ~/.bashrc
-fi
+echo "cd $NETWORK_VOLUME" >> ~/.bashrc
 
 
 
@@ -446,95 +249,51 @@ for file in *.zip; do
     mv "$file" "${file%.zip}.safetensors"
 done
 
-mark_stage "lora_rename"
-
-# Wait for CUDA to become available before launching ComfyUI.
-wait_for_cuda_ready() {
-    local timeout_s="${GPU_READY_TIMEOUT_S:-180}"
-    local poll_s="${GPU_READY_POLL_S:-5}"
-    local elapsed_s=0
-    local log_interval_s=30
-
-    echo "Checking CUDA readiness (timeout=${timeout_s}s, poll=${poll_s}s)..."
-
-    while [ "$elapsed_s" -lt "$timeout_s" ]; do
-        if python3 - <<'PY' >/dev/null 2>&1
-import torch
-ok = torch.cuda.is_available() and torch.cuda.device_count() > 0
-if ok:
-    _ = torch.cuda.current_device()
-raise SystemExit(0 if ok else 1)
-PY
-        then
-            echo "CUDA is ready."
-            return 0
+# Wait for SageAttention build to complete
+echo "Waiting for SageAttention build to complete..."
+while ! [ -f /tmp/sage_build_done ]; do
+    if ps -p $SAGE_PID > /dev/null 2>&1; then
+        echo "⚙️  SageAttention build in progress, this may take up to 5 minutes."
+        sleep 5
+    else
+        # Process finished but no completion marker - check if it failed
+        if ! [ -f /tmp/sage_build_done ]; then
+            echo "⚠️  SageAttention build process ended unexpectedly. Check logs at /tmp/sage_build.log"
+            echo "Continuing with ComfyUI startup..."
+            break
         fi
+    fi
+done
 
-        if [ $((elapsed_s % log_interval_s)) -eq 0 ]; then
-            echo "Waiting for CUDA/GPU runtime to initialize..."
-            if command -v nvidia-smi >/dev/null 2>&1; then
-                nvidia-smi -L 2>/dev/null || true
-            fi
-        fi
-
-        sleep "$poll_s"
-        elapsed_s=$((elapsed_s + poll_s))
-    done
-
-    echo "⚠️  CUDA was not ready after ${timeout_s}s. Continuing startup; ComfyUI may fail if GPU runtime is unavailable."
-    return 1
-}
-
-if [ "${WAIT_FOR_CUDA_READY:-1}" = "1" ]; then
-    wait_for_cuda_ready || true
-    mark_stage "cuda_ready_wait"
+if [ -f /tmp/sage_build_done ]; then
+    echo "✅ SageAttention build completed successfully!"
 fi
 
 # Start ComfyUI
 
 echo "Starting ComfyUI"
 
-COMFY_LOG_PATH="$NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log"
-COMFY_CMD=(python3 "$COMFYUI_DIR/main.py" --listen "0.0.0.0" --port "$COMFYUI_PORT")
+nohup python3 "$NETWORK_VOLUME/ComfyUI/main.py" --listen --use-sage-attention > "$NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log" 2>&1 &
 
-nohup "${COMFY_CMD[@]}" > "$COMFY_LOG_PATH" 2>&1 &
-COMFY_PID=$!
+    # Counter for timeout
+    counter=0
+    max_wait=45
 
-# Counter for timeout
-counter=0
-max_wait=90
-comfy_status_log_interval=10
+    until curl --silent --fail "$URL" --output /dev/null; do
+        if [ $counter -ge $max_wait ]; then
+            echo "ComfyUI should be running if not please refer to Aiorbust's discord channel's general support."
+            break
+        fi
 
-until curl --silent --fail "$URL" --output /dev/null; do
-    if ! ps -p "$COMFY_PID" > /dev/null 2>&1; then
-        echo "❌ ComfyUI process exited before becoming ready."
-        echo "Last 120 lines from $COMFY_LOG_PATH:"
-        tail -n 120 "$COMFY_LOG_PATH" || true
-        exit 1
+        echo "🔄  ComfyUI Starting Up... You can view the startup logs here: $NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log"
+        sleep 2
+        counter=$((counter + 2))
+    done
+
+    # Only show success message if curl succeeded
+    if curl --silent --fail "$URL" --output /dev/null; then
+        echo "🚀 ComfyUI is UP"
     fi
 
-    if [ $counter -ge $max_wait ]; then
-        echo "❌ ComfyUI did not become reachable at $URL within ${max_wait}s."
-        echo "Last 120 lines from $COMFY_LOG_PATH:"
-        tail -n 120 "$COMFY_LOG_PATH" || true
-        exit 1
-    fi
-
-    if [ $((counter % comfy_status_log_interval)) -eq 0 ]; then
-        echo "ComfyUI starting up... logs: $COMFY_LOG_PATH"
-    fi
-    sleep 2
-    counter=$((counter + 2))
-done
-
-echo "🚀 ComfyUI is UP"
-
-BOOT_END_TS="$(date +%s)"
-BOOT_TOTAL_S=$((BOOT_END_TS - BOOT_START_TS))
-BOOT_TIMESTAMP="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-printf "%s pod=%s volume=%s seed=%s total_s=%s\n" \
-    "$BOOT_TIMESTAMP" "${RUNPOD_POD_ID:-unknown}" "$NETWORK_VOLUME" "$STARTUP_VOLUME_SEED_MODE" "$BOOT_TOTAL_S" \
-    | tee -a "$STARTUP_TIMING_LOG"
-echo "[timing] log_file=$STARTUP_TIMING_LOG"
-
-sleep infinity
+    sleep infinity
+fi

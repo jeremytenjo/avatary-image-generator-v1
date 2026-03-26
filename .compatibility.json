@@ -1,8 +1,0 @@
-{
-  "baseImage": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "requiredPins": {
-    "jupyterlab": "4.5.6",
-    "notebook": "7.5.3",
-    "pyparsing": "3.1.1"
-  }
-}

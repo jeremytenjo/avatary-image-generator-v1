@@ -22,3 +22,61 @@ ComfyUI/user/
 # Logs
 *.log
 *.tmp
+
+# macOS
+.DS_Store
+
+# Git
+.git
+.github
+
+# Editor
+.vscode
+
+# Docker runtime junk
+.dockerenv
+
+# Node
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# Python (if any)
+__pycache__/
+*.pyc
+
+# System folders (copied from container — DO NOT VERSION)
+bin/
+boot/
+dev/
+etc/
+lib/
+lib64/
+opt/
+proc/
+root/
+run/
+sbin/
+srv/
+sys/
+tmp/
+usr/
+var/
+media/
+mnt/
+home/
+
+# Large AI assets (optional but recommended)
+ComfyUI/models/
+ComfyUI/output/
+ComfyUI/input/
+
+# Logs / temp
+*.log
+
+# Playwright / tooling
+.playwright-mcp/
+
+# Misc configs you don’t need in repo
+.npmrc
+.publish-dockerhub.json
