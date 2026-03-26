@@ -140,21 +140,19 @@ ensure_custom_node_repo() {
     return 1
 }
 
-if [ "$NETWORK_VOLUME" != "/" ]; then
-    # Ensure critical workflow custom nodes exist on the network volume.
-    ensure_custom_node_repo "rgthree-comfy" "https://github.com/rgthree/rgthree-comfy.git"
-    ensure_custom_node_repo "ComfyUI-GlifNodes" "https://github.com/glifxyz/ComfyUI-GlifNodes.git"
-    ensure_custom_node_repo "ComfyUI-Impact-Pack" "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git"
-    ensure_custom_node_repo "ComfyUI-Impact-Subpack" "https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git"
-    ensure_custom_node_repo "cg-use-everywhere" "https://github.com/chrisgoringe/cg-use-everywhere.git"
-    ensure_custom_node_repo "ComfyUI_essentials" "https://github.com/cubiq/ComfyUI_essentials.git"
-    ensure_custom_node_repo "Comfyui-NAG-Aiorbust" "https://github.com/ai-robust/Comfyui-NAG.git"
-    ensure_custom_node_repo "comfyui-inspire-pack" "https://github.com/ltdrdata/ComfyUI-Inspire-Pack.git"
-    ensure_custom_node_repo "ComfyUI-SAM3" "https://github.com/PozzettiAndrea/ComfyUI-SAM3.git"
-    ensure_custom_node_repo "was-node-suite-comfyui" "https://github.com/WASasquatch/was-node-suite-comfyui.git"
-    ensure_custom_node_repo "ComfyUI-JoyCaption" "https://github.com/1038lab/ComfyUI-JoyCaption.git"
-    ensure_custom_node_repo "ComfyUI-GGUF" "https://github.com/city96/ComfyUI-GGUF.git"
-fi
+# Ensure critical workflow custom nodes exist regardless of volume mode.
+ensure_custom_node_repo "rgthree-comfy" "https://github.com/rgthree/rgthree-comfy.git"
+ensure_custom_node_repo "ComfyUI-GlifNodes" "https://github.com/glifxyz/ComfyUI-GlifNodes.git"
+ensure_custom_node_repo "ComfyUI-Impact-Pack" "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git"
+ensure_custom_node_repo "ComfyUI-Impact-Subpack" "https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git"
+ensure_custom_node_repo "cg-use-everywhere" "https://github.com/chrisgoringe/cg-use-everywhere.git"
+ensure_custom_node_repo "ComfyUI_essentials" "https://github.com/cubiq/ComfyUI_essentials.git"
+ensure_custom_node_repo "Comfyui-NAG-Aiorbust" "https://github.com/ChenDarYen/ComfyUI-NAG.git"
+ensure_custom_node_repo "comfyui-inspire-pack" "https://github.com/ltdrdata/ComfyUI-Inspire-Pack.git"
+ensure_custom_node_repo "ComfyUI-SAM3" "https://github.com/PozzettiAndrea/ComfyUI-SAM3.git"
+ensure_custom_node_repo "was-node-suite-comfyui" "https://github.com/WASasquatch/was-node-suite-comfyui.git"
+ensure_custom_node_repo "ComfyUI-JoyCaption" "https://github.com/1038lab/ComfyUI-JoyCaption.git"
+ensure_custom_node_repo "ComfyUI-GGUF" "https://github.com/city96/ComfyUI-GGUF.git"
 
 mark_stage "required_custom_nodes"
 
