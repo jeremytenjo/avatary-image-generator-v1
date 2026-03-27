@@ -8,6 +8,39 @@ export LD_PRELOAD="${TCMALLOC}"
 USE_SAGE_ATTENTION="${USE_SAGE_ATTENTION:-0}"
 INSTALL_ONNXRUNTIME_AT_STARTUP="${INSTALL_ONNXRUNTIME_AT_STARTUP:-0}"
 
+normalize_cuda_visibility() {
+    # Keep CUDA visibility stable before any Python/Torch process starts.
+    # Invalid values like "all"/"void"/"none" can trigger CUDA init failures.
+    local current="${CUDA_VISIBLE_DEVICES:-}"
+    case "${current,,}" in
+        "" )
+            ;;
+        "all"|"none"|"void"|"no"|"null" )
+            echo "⚠️  CUDA_VISIBLE_DEVICES='$current' is not valid for CUDA runtime; unsetting it."
+            unset CUDA_VISIBLE_DEVICES
+            ;;
+        * )
+            ;;
+    esac
+}
+
+cuda_preflight_ok() {
+    python3 - <<'PY'
+import sys
+try:
+    import torch
+    if not torch.cuda.is_available():
+        raise RuntimeError("torch.cuda.is_available() returned False")
+    _ = torch.cuda.current_device()
+    print("CUDA preflight passed")
+except Exception as e:
+    print(f"CUDA preflight failed: {e}", file=sys.stderr)
+    sys.exit(1)
+PY
+}
+
+normalize_cuda_visibility
+
 BOOT_TIMING_LOG="/tmp/install_bootstrap_timing.log"
 echo "filepath_or_filename, duration seconds/minutes, size" > "$BOOT_TIMING_LOG"
 
@@ -657,6 +690,14 @@ echo "Starting ComfyUI"
 COMFY_ARGS=(--listen)
 if [ "$USE_SAGE_ATTENTION" = "1" ]; then
     COMFY_ARGS+=(--use-sage-attention)
+fi
+
+if ! cuda_preflight_ok; then
+    echo "❌ FATAL: CUDA preflight failed. ComfyUI will not start."
+    echo "❌ FATAL: Check pod GPU attachment/runtime configuration and CUDA environment."
+    echo "❌ FATAL: Startup aborted before launching main.py."
+    log_timing "startup" "cuda_preflight" "failed_abort" "$INSTALL_START_TS" "$(date +%s)" "0" "torch.cuda"
+    exit 1
 fi
 
 nohup python3 "$NETWORK_VOLUME/ComfyUI/main.py" "${COMFY_ARGS[@]}" > "$NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log" 2>&1 &
