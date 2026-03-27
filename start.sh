@@ -4,6 +4,11 @@
 TCMALLOC="$(ldconfig -p | grep -Po "libtcmalloc.so.\d" | head -n 1)"
 export LD_PRELOAD="${TCMALLOC}"
 
+# Startup tuning knobs
+USE_SAGE_ATTENTION="${USE_SAGE_ATTENTION:-0}"
+INSTALL_ONNXRUNTIME_AT_STARTUP="${INSTALL_ONNXRUNTIME_AT_STARTUP:-0}"
+BLOCK_ON_MODEL_DOWNLOADS="${BLOCK_ON_MODEL_DOWNLOADS:-0}"
+
 
 if ! which aria2 > /dev/null 2>&1; then
     echo "Installing aria2..."
@@ -19,19 +24,24 @@ else
     echo "curl is already installed"
 fi
 
-# Start SageAttention build in the background
-echo "Starting SageAttention build..."
-(
-    export EXT_PARALLEL=4 NVCC_APPEND_FLAGS="--threads 8" MAX_JOBS=32
-    cd /tmp
-    git clone https://github.com/thu-ml/SageAttention.git
-    cd SageAttention
-    git reset --hard 68de379
-    pip install -e .
-    echo "SageAttention build completed" > /tmp/sage_build_done
-) > /tmp/sage_build.log 2>&1 &
-SAGE_PID=$!
-echo "SageAttention build started in background (PID: $SAGE_PID)"
+SAGE_PID=""
+if [ "$USE_SAGE_ATTENTION" = "1" ]; then
+    # Start SageAttention build in the background
+    echo "Starting SageAttention build..."
+    (
+        export EXT_PARALLEL=4 NVCC_APPEND_FLAGS="--threads 8" MAX_JOBS=32
+        cd /tmp
+        git clone https://github.com/thu-ml/SageAttention.git
+        cd SageAttention
+        git reset --hard 68de379
+        pip install -e .
+        echo "SageAttention build completed" > /tmp/sage_build_done
+    ) > /tmp/sage_build.log 2>&1 &
+    SAGE_PID=$!
+    echo "SageAttention build started in background (PID: $SAGE_PID)"
+else
+    echo "Skipping SageAttention build (USE_SAGE_ATTENTION=$USE_SAGE_ATTENTION)"
+fi
 
 # Set the network volume path
 NETWORK_VOLUME="/workspace"
@@ -47,6 +57,32 @@ else
     echo "NETWORK_VOLUME directory exists. Starting JupyterLab..."
     jupyter-lab --ip=0.0.0.0 --allow-root --no-browser --NotebookApp.token='' --NotebookApp.password='' --ServerApp.allow_origin='*' --ServerApp.allow_credentials=True --notebook-dir=/workspace &
 fi
+
+TIMING_LOG="$NETWORK_VOLUME/install_timing.log"
+INSTALL_START_TS=$(date +%s)
+mkdir -p "$NETWORK_VOLUME"
+if [ ! -f "$TIMING_LOG" ]; then
+    echo "timestamp_utc|phase|part|status|duration_s|bytes|source" > "$TIMING_LOG"
+fi
+
+log_timing() {
+    local phase="$1"
+    local part="$2"
+    local status="$3"
+    local start_ts="$4"
+    local end_ts="$5"
+    local bytes="$6"
+    local source="$7"
+    local duration=$((end_ts - start_ts))
+    printf "%s|%s|%s|%s|%s|%s|%s\n" \
+        "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+        "$phase" \
+        "$part" \
+        "$status" \
+        "$duration" \
+        "$bytes" \
+        "$source" >> "$TIMING_LOG"
+}
 
 COMFYUI_DIR="$NETWORK_VOLUME/ComfyUI"
 WORKFLOW_DIR="$NETWORK_VOLUME/ComfyUI/user/default/workflows"
@@ -65,7 +101,11 @@ else
     fi
 fi
 
-pip install onnxruntime-gpu &
+if [ "$INSTALL_ONNXRUNTIME_AT_STARTUP" = "1" ]; then
+    pip install onnxruntime-gpu &
+else
+    echo "Skipping runtime onnxruntime-gpu install (INSTALL_ONNXRUNTIME_AT_STARTUP=$INSTALL_ONNXRUNTIME_AT_STARTUP)"
+fi
 
 
 export change_preview_method="true"
@@ -81,6 +121,7 @@ download_model() {
     local url="$1"
     local full_path="$2"
     local hf_token="your_hf_token_here" # Best to pass this as a 3rd argument or env var
+    local start_ts=$(date +%s)
 
     local destination_dir=$(dirname "$full_path")
     local destination_file=$(basename "$full_path")
@@ -95,6 +136,7 @@ download_model() {
             rm -f "$full_path"
         else
             echo "✅ $destination_file already exists, skipping."
+            log_timing "direct_download" "$destination_file" "skipped_existing" "$start_ts" "$(date +%s)" "$size_bytes" "$url"
             return 0
         fi
     fi
@@ -109,8 +151,42 @@ download_model() {
         -d "$destination_dir" \
         -o "$destination_file" \
         "$url"
+    local rc=$?
+    local size_bytes=$(stat -f%z "$full_path" 2>/dev/null || stat -c%s "$full_path" 2>/dev/null || echo 0)
+    local end_ts=$(date +%s)
+    if [ $rc -eq 0 ]; then
+        log_timing "direct_download" "$destination_file" "success" "$start_ts" "$end_ts" "$size_bytes" "$url"
+    else
+        log_timing "direct_download" "$destination_file" "failed" "$start_ts" "$end_ts" "$size_bytes" "$url"
+    fi
 
     echo "Download started in background for $destination_file"
+    return $rc
+}
+
+download_model_bg() {
+    local url="$1"
+    local full_path="$2"
+    download_model "$url" "$full_path" &
+    PRIMARY_MODEL_DOWNLOAD_PIDS+=($!)
+}
+
+download_model_id_bg() {
+    local target_dir="$1"
+    local model_id="$2"
+    (
+        local start_ts=$(date +%s)
+        cd "$target_dir" || exit 1
+        download_with_aria.py -m "$model_id"
+        local rc=$?
+        local end_ts=$(date +%s)
+        if [ $rc -eq 0 ]; then
+            log_timing "model_id_download" "$model_id" "success" "$start_ts" "$end_ts" "0" "$target_dir"
+        else
+            log_timing "model_id_download" "$model_id" "failed" "$start_ts" "$end_ts" "0" "$target_dir"
+        fi
+        exit $rc
+    ) &
 }
 
 # Define base paths
@@ -125,35 +201,29 @@ LATENT_UPSCALE_DIR="$NETWORK_VOLUME/ComfyUI/models/latent_upscale_models"
 
 echo "📦 Starting model downloads..."
 
+PRIMARY_MODEL_DOWNLOAD_PIDS=()
 
-download_model "https://huggingface.co/Comfy-Org/z_image/resolve/main/split_files/diffusion_models/z_image_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_bf16.safetensors"
+download_model_bg "https://huggingface.co/Comfy-Org/z_image/resolve/main/split_files/diffusion_models/z_image_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_bf16.safetensors"
 
-download_model "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_turbo.safetensors"
+download_model_bg "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_turbo.safetensors"
 
-download_model "https://huggingface.co/aiorbust/z-image-nsfw/resolve/main/z-image-turbo-nsfw.safetensors" "$DIFFUSION_MODELS_DIR/z-image-turbo-nsfw.safetensors"
+download_model_bg "https://huggingface.co/aiorbust/z-image-nsfw/resolve/main/z-image-turbo-nsfw.safetensors" "$DIFFUSION_MODELS_DIR/z-image-turbo-nsfw.safetensors"
 
-download_model "https://huggingface.co/dci05049/z-image-lora/resolve/main/instagram_zimageturbo.safetensors" "$LORAS_DIR/instagram_zimageturbo.safetensors"
+download_model_bg "https://huggingface.co/dci05049/z-image-lora/resolve/main/instagram_zimageturbo.safetensors" "$LORAS_DIR/instagram_zimageturbo.safetensors"
 
-download_model "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors" "$VAE_DIR/ae.safetensors"
+download_model_bg "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors" "$VAE_DIR/ae.safetensors"
 
-download_model "https://huggingface.co/dci05049/z-image-lora/resolve/main/z_image_vae.safetensors" "$VAE_DIR/z_image_vae.safetensors"
+download_model_bg "https://huggingface.co/dci05049/z-image-lora/resolve/main/z_image_vae.safetensors" "$VAE_DIR/z_image_vae.safetensors"
 
-download_model "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors" "$TEXT_ENCODERS_DIR/qwen_3_4b.safetensors"
+download_model_bg "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors" "$TEXT_ENCODERS_DIR/qwen_3_4b.safetensors"
 
-download_model "https://huggingface.co/BennyDaBall/Qwen3-4b-Z-Image-Turbo-AbliteratedV1/resolve/main/Z-Image-AbliteratedV1.f16.gguf" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.gguf"
+download_model_bg "https://huggingface.co/BennyDaBall/Qwen3-4b-Z-Image-Turbo-AbliteratedV1/resolve/main/Z-Image-AbliteratedV1.f16.gguf" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.gguf"
 
-download_model "https://huggingface.co/aiorbust/z-image-nsfw/resolve/main/Z-Image-AbliteratedV1.f16.safetensors" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.safetensors"
+download_model_bg "https://huggingface.co/aiorbust/z-image-nsfw/resolve/main/Z-Image-AbliteratedV1.f16.safetensors" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.safetensors"
 
-download_model "https://huggingface.co/BennyDaBall/Qwen3-4b-Z-Image-Engineer-V4/resolve/main/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf" "$TEXT_ENCODERS_DIR/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf"
+download_model_bg "https://huggingface.co/BennyDaBall/Qwen3-4b-Z-Image-Engineer-V4/resolve/main/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf" "$TEXT_ENCODERS_DIR/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf"
 
-download_model "https://huggingface.co/dci05049/z-image-lora/resolve/main/Sally_Lokr.safetensors" "$LORAS_DIR/Sally_Lokr.safetensors"
-
-
-# Keep checking until no aria2c processes are running
-while pgrep -x "aria2c" > /dev/null; do
-    echo "Models are downloading (In Progress)"
-    sleep 5  # Check every 5 seconds
-done
+download_model_bg "https://huggingface.co/dci05049/z-image-lora/resolve/main/Sally_Lokr.safetensors" "$LORAS_DIR/Sally_Lokr.safetensors"
 
 declare -A MODEL_CATEGORIES=(
     ["$NETWORK_VOLUME/ComfyUI/models/checkpoints"]="$CHECKPOINT_IDS_TO_DOWNLOAD"
@@ -179,24 +249,26 @@ for TARGET_DIR in "${!MODEL_CATEGORIES[@]}"; do
     for MODEL_ID in "${MODEL_IDS[@]}"; do
         sleep 1
         echo "Scheduling download: $MODEL_ID to $TARGET_DIR"
-        (cd "$TARGET_DIR" && download_with_aria.py -m "$MODEL_ID") &
+        download_model_id_bg "$TARGET_DIR" "$MODEL_ID"
         ((download_count++))
     done
 done
 
 echo "Scheduled $download_count downloads in background"
 
-# Wait for all downloads to complete
-echo "Waiting for downloads to complete..."
-while pgrep -x "aria2c" > /dev/null; do
-    echo "🔽 LoRA Downloads still in progress..."
-    sleep 5  # Check every 5 seconds
-done
+wait_for_all_model_downloads() {
+    echo "Waiting for primary model downloads to complete..."
+    for pid in "${PRIMARY_MODEL_DOWNLOAD_PIDS[@]}"; do
+        wait "$pid"
+    done
 
-
-echo "All models downloaded successfully"
-
-echo "All downloads completed"
+    echo "Waiting for all aria2 downloads to complete..."
+    while pgrep -x "aria2c" > /dev/null; do
+        echo "🔽 Model downloads still in progress..."
+        sleep 5
+    done
+    echo "All model downloads completed"
+}
 
 # Ensure the file exists in the current directory before moving it
 cd /
@@ -249,37 +321,58 @@ echo "cd $NETWORK_VOLUME" >> ~/.bashrc
 
 
 echo "Renaming loras downloaded as zip files to safetensors files"
-cd $LORAS_DIR
-for file in *.zip; do
-    [ -f "$file" ] || continue
-    mv "$file" "${file%.zip}.safetensors"
-done
+finalize_model_downloads() {
+    local install_finish_start_ts=$(date +%s)
+    wait_for_all_model_downloads
+    cd "$LORAS_DIR"
+    for file in *.zip; do
+        [ -f "$file" ] || continue
+        mv "$file" "${file%.zip}.safetensors"
+    done
+    local install_end_ts=$(date +%s)
+    log_timing "installation" "all_downloads" "completed" "$INSTALL_START_TS" "$install_end_ts" "0" "$TIMING_LOG"
+    log_timing "installation" "finalize_step" "completed" "$install_finish_start_ts" "$install_end_ts" "0" "$TIMING_LOG"
+    echo "Timing log available at: $TIMING_LOG"
+}
 
-# Wait for SageAttention build to complete
-echo "Waiting for SageAttention build to complete..."
-while ! [ -f /tmp/sage_build_done ]; do
-    if ps -p $SAGE_PID > /dev/null 2>&1; then
-        echo "⚙️  SageAttention build in progress, this may take up to 5 minutes."
-        sleep 5
-    else
-        # Process finished but no completion marker - check if it failed
-        if ! [ -f /tmp/sage_build_done ]; then
-            echo "⚠️  SageAttention build process ended unexpectedly. Check logs at /tmp/sage_build.log"
-            echo "Continuing with ComfyUI startup..."
-            break
+if [ "$BLOCK_ON_MODEL_DOWNLOADS" = "1" ]; then
+    finalize_model_downloads
+else
+    echo "Not blocking startup on model downloads (BLOCK_ON_MODEL_DOWNLOADS=$BLOCK_ON_MODEL_DOWNLOADS)"
+    finalize_model_downloads > "$NETWORK_VOLUME/model_downloads.log" 2>&1 &
+fi
+
+if [ "$USE_SAGE_ATTENTION" = "1" ]; then
+    # Wait for SageAttention build to complete
+    echo "Waiting for SageAttention build to complete..."
+    while ! [ -f /tmp/sage_build_done ]; do
+        if ps -p $SAGE_PID > /dev/null 2>&1; then
+            echo "⚙️  SageAttention build in progress, this may take up to 5 minutes."
+            sleep 5
+        else
+            # Process finished but no completion marker - check if it failed
+            if ! [ -f /tmp/sage_build_done ]; then
+                echo "⚠️  SageAttention build process ended unexpectedly. Check logs at /tmp/sage_build.log"
+                echo "Continuing with ComfyUI startup..."
+                break
+            fi
         fi
-    fi
-done
+    done
 
-if [ -f /tmp/sage_build_done ]; then
-    echo "✅ SageAttention build completed successfully!"
+    if [ -f /tmp/sage_build_done ]; then
+        echo "✅ SageAttention build completed successfully!"
+    fi
 fi
 
 # Start ComfyUI
 
 echo "Starting ComfyUI"
+COMFY_ARGS=(--listen)
+if [ "$USE_SAGE_ATTENTION" = "1" ]; then
+    COMFY_ARGS+=(--use-sage-attention)
+fi
 
-nohup python3 "$NETWORK_VOLUME/ComfyUI/main.py" --listen --use-sage-attention > "$NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log" 2>&1 &
+nohup python3 "$NETWORK_VOLUME/ComfyUI/main.py" "${COMFY_ARGS[@]}" > "$NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log" 2>&1 &
 
     # Counter for timeout
     counter=0
@@ -287,7 +380,7 @@ nohup python3 "$NETWORK_VOLUME/ComfyUI/main.py" --listen --use-sage-attention > 
 
     until curl --silent --fail "$URL" --output /dev/null; do
         if [ $counter -ge $max_wait ]; then
-            echo "ComfyUI should be running if not please refer to Aiorbust's discord channel's general support."
+            echo "ComfyUI should be running if not please reach out to Avatary support."
             break
         fi
 
