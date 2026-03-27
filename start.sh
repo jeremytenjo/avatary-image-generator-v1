@@ -9,24 +9,70 @@ USE_SAGE_ATTENTION="${USE_SAGE_ATTENTION:-0}"
 INSTALL_ONNXRUNTIME_AT_STARTUP="${INSTALL_ONNXRUNTIME_AT_STARTUP:-0}"
 BLOCK_ON_MODEL_DOWNLOADS="${BLOCK_ON_MODEL_DOWNLOADS:-0}"
 
+BOOT_TIMING_LOG="/tmp/install_bootstrap_timing.log"
+if [ ! -f "$BOOT_TIMING_LOG" ]; then
+    echo "timestamp_utc|phase|part|status|duration_s|bytes|source" > "$BOOT_TIMING_LOG"
+fi
+
+log_boot_timing() {
+    local phase="$1"
+    local part="$2"
+    local status="$3"
+    local start_ts="$4"
+    local end_ts="$5"
+    local bytes="$6"
+    local source="$7"
+    local duration=$((end_ts - start_ts))
+    printf "%s|%s|%s|%s|%s|%s|%s\n" \
+        "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+        "$phase" \
+        "$part" \
+        "$status" \
+        "$duration" \
+        "$bytes" \
+        "$source" >> "$BOOT_TIMING_LOG"
+}
+
 
 if ! which aria2 > /dev/null 2>&1; then
+    aria2_start_ts=$(date +%s)
     echo "Installing aria2..."
     apt-get update && apt-get install -y aria2
+    aria2_rc=$?
+    aria2_end_ts=$(date +%s)
+    if [ $aria2_rc -eq 0 ]; then
+        log_boot_timing "package_install" "aria2" "success" "$aria2_start_ts" "$aria2_end_ts" "0" "apt-get"
+    else
+        log_boot_timing "package_install" "aria2" "failed" "$aria2_start_ts" "$aria2_end_ts" "0" "apt-get"
+    fi
 else
     echo "aria2 is already installed"
+    aria2_now_ts=$(date +%s)
+    log_boot_timing "package_install" "aria2" "skipped_existing" "$aria2_now_ts" "$aria2_now_ts" "0" "apt-get"
 fi
 
 if ! which curl > /dev/null 2>&1; then
+    curl_start_ts=$(date +%s)
     echo "Installing curl..."
     apt-get update && apt-get install -y curl
+    curl_rc=$?
+    curl_end_ts=$(date +%s)
+    if [ $curl_rc -eq 0 ]; then
+        log_boot_timing "package_install" "curl" "success" "$curl_start_ts" "$curl_end_ts" "0" "apt-get"
+    else
+        log_boot_timing "package_install" "curl" "failed" "$curl_start_ts" "$curl_end_ts" "0" "apt-get"
+    fi
 else
     echo "curl is already installed"
+    curl_now_ts=$(date +%s)
+    log_boot_timing "package_install" "curl" "skipped_existing" "$curl_now_ts" "$curl_now_ts" "0" "apt-get"
 fi
 
 SAGE_PID=""
+SAGE_BUILD_START_TS=""
 if [ "$USE_SAGE_ATTENTION" = "1" ]; then
     # Start SageAttention build in the background
+    SAGE_BUILD_START_TS=$(date +%s)
     echo "Starting SageAttention build..."
     (
         export EXT_PARALLEL=4 NVCC_APPEND_FLAGS="--threads 8" MAX_JOBS=32
@@ -41,6 +87,8 @@ if [ "$USE_SAGE_ATTENTION" = "1" ]; then
     echo "SageAttention build started in background (PID: $SAGE_PID)"
 else
     echo "Skipping SageAttention build (USE_SAGE_ATTENTION=$USE_SAGE_ATTENTION)"
+    sage_now_ts=$(date +%s)
+    log_boot_timing "build" "sageattention" "skipped_disabled" "$sage_now_ts" "$sage_now_ts" "0" "env:USE_SAGE_ATTENTION"
 fi
 
 # Set the network volume path
@@ -84,6 +132,10 @@ log_timing() {
         "$source" >> "$TIMING_LOG"
 }
 
+if [ -f "$BOOT_TIMING_LOG" ]; then
+    tail -n +2 "$BOOT_TIMING_LOG" >> "$TIMING_LOG"
+fi
+
 COMFYUI_DIR="$NETWORK_VOLUME/ComfyUI"
 WORKFLOW_DIR="$NETWORK_VOLUME/ComfyUI/user/default/workflows"
 
@@ -102,9 +154,22 @@ else
 fi
 
 if [ "$INSTALL_ONNXRUNTIME_AT_STARTUP" = "1" ]; then
-    pip install onnxruntime-gpu &
+    (
+        onnx_start_ts=$(date +%s)
+        pip install onnxruntime-gpu
+        onnx_rc=$?
+        onnx_end_ts=$(date +%s)
+        if [ $onnx_rc -eq 0 ]; then
+            log_timing "pip_install" "onnxruntime-gpu" "success" "$onnx_start_ts" "$onnx_end_ts" "0" "pip"
+        else
+            log_timing "pip_install" "onnxruntime-gpu" "failed" "$onnx_start_ts" "$onnx_end_ts" "0" "pip"
+        fi
+        exit $onnx_rc
+    ) &
 else
     echo "Skipping runtime onnxruntime-gpu install (INSTALL_ONNXRUNTIME_AT_STARTUP=$INSTALL_ONNXRUNTIME_AT_STARTUP)"
+    onnx_now_ts=$(date +%s)
+    log_timing "pip_install" "onnxruntime-gpu" "skipped_disabled" "$onnx_now_ts" "$onnx_now_ts" "0" "env:INSTALL_ONNXRUNTIME_AT_STARTUP"
 fi
 
 
@@ -114,6 +179,67 @@ export change_preview_method="true"
 # Change to the directory
 mkdir -p "$CUSTOM_NODES_DIR"
 cd "$CUSTOM_NODES_DIR" || exit 1
+
+install_or_update_custom_node() {
+    local repo_url="$1"
+    local repo_dir="$2"
+    local node_path="$CUSTOM_NODES_DIR/$repo_dir"
+    local start_ts
+    local end_ts
+    local rc=0
+    start_ts=$(date +%s)
+
+    if [ -d "$node_path/.git" ]; then
+        echo "Updating custom node: $repo_dir"
+        git -C "$node_path" pull --ff-only || rc=$?
+        end_ts=$(date +%s)
+        if [ $rc -eq 0 ]; then
+            log_timing "custom_node_install" "$repo_dir" "updated" "$start_ts" "$end_ts" "0" "$repo_url"
+        else
+            log_timing "custom_node_install" "$repo_dir" "update_failed" "$start_ts" "$end_ts" "0" "$repo_url"
+            return $rc
+        fi
+    else
+        echo "Installing custom node: $repo_dir"
+        git clone --depth 1 "$repo_url" "$node_path" || rc=$?
+        end_ts=$(date +%s)
+        if [ $rc -eq 0 ]; then
+            log_timing "custom_node_install" "$repo_dir" "installed" "$start_ts" "$end_ts" "0" "$repo_url"
+        else
+            log_timing "custom_node_install" "$repo_dir" "install_failed" "$start_ts" "$end_ts" "0" "$repo_url"
+            return $rc
+        fi
+    fi
+
+    # Install custom node dependencies when provided by the node repo.
+    if [ -f "$node_path/requirements.txt" ]; then
+        local dep_start_ts
+        local dep_end_ts
+        dep_start_ts=$(date +%s)
+        pip install -r "$node_path/requirements.txt"
+        rc=$?
+        dep_end_ts=$(date +%s)
+        if [ $rc -eq 0 ]; then
+            log_timing "custom_node_deps" "$repo_dir" "success" "$dep_start_ts" "$dep_end_ts" "0" "$node_path/requirements.txt"
+        else
+            log_timing "custom_node_deps" "$repo_dir" "failed" "$dep_start_ts" "$dep_end_ts" "0" "$node_path/requirements.txt"
+            return $rc
+        fi
+    else
+        local dep_now_ts
+        dep_now_ts=$(date +%s)
+        log_timing "custom_node_deps" "$repo_dir" "skipped_no_requirements" "$dep_now_ts" "$dep_now_ts" "0" "$node_path"
+    fi
+
+    return 0
+}
+
+echo "Ensuring required custom nodes are installed..."
+install_or_update_custom_node "https://github.com/ltdrdata/was-node-suite-comfyui.git" "was-node-suite-comfyui"
+install_or_update_custom_node "https://github.com/1038lab/ComfyUI-JoyCaption.git" "ComfyUI-JoyCaption"
+install_or_update_custom_node "https://github.com/PozzettiAndrea/ComfyUI-SAM3.git" "ComfyUI-SAM3"
+install_or_update_custom_node "https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch.git" "ComfyUI-Inpaint-CropAndStitch"
+install_or_update_custom_node "https://github.com/city96/ComfyUI-GGUF.git" "ComfyUI-GGUF"
 
 
 # Function to download a model using huggingface-cli
@@ -345,6 +471,7 @@ fi
 if [ "$USE_SAGE_ATTENTION" = "1" ]; then
     # Wait for SageAttention build to complete
     echo "Waiting for SageAttention build to complete..."
+    sage_status="failed"
     while ! [ -f /tmp/sage_build_done ]; do
         if ps -p $SAGE_PID > /dev/null 2>&1; then
             echo "⚙️  SageAttention build in progress, this may take up to 5 minutes."
@@ -354,6 +481,7 @@ if [ "$USE_SAGE_ATTENTION" = "1" ]; then
             if ! [ -f /tmp/sage_build_done ]; then
                 echo "⚠️  SageAttention build process ended unexpectedly. Check logs at /tmp/sage_build.log"
                 echo "Continuing with ComfyUI startup..."
+                sage_status="failed"
                 break
             fi
         fi
@@ -361,7 +489,10 @@ if [ "$USE_SAGE_ATTENTION" = "1" ]; then
 
     if [ -f /tmp/sage_build_done ]; then
         echo "✅ SageAttention build completed successfully!"
+        sage_status="success"
     fi
+    sage_end_ts=$(date +%s)
+    log_timing "build" "sageattention" "$sage_status" "$SAGE_BUILD_START_TS" "$sage_end_ts" "0" "/tmp/sage_build.log"
 fi
 
 # Start ComfyUI
