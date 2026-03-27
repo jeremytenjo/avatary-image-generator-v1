@@ -355,6 +355,7 @@ LORAS_DIR="$NETWORK_VOLUME/ComfyUI/models/loras"
 CHECKPOINTS_DIR="$NETWORK_VOLUME/ComfyUI/models/checkpoints"
 UPSCALE_DIR="$NETWORK_VOLUME/ComfyUI/models/upscale_models"
 LATENT_UPSCALE_DIR="$NETWORK_VOLUME/ComfyUI/models/latent_upscale_models"
+SAM3_DIR="$NETWORK_VOLUME/ComfyUI/models/sam3"
 
 echo "📦 Starting model downloads..."
 
@@ -382,6 +383,8 @@ download_model_bg "https://huggingface.co/aiorbust/z-image-nsfw/resolve/main/Z-I
 download_model_bg "https://huggingface.co/BennyDaBall/Qwen3-4b-Z-Image-Engineer-V4/resolve/main/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf" "$TEXT_ENCODERS_DIR/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf"
 
 download_model_bg "https://huggingface.co/dci05049/z-image-lora/resolve/main/Sally_Lokr.safetensors" "$LORAS_DIR/Sally_Lokr.safetensors"
+
+download_model_bg "https://huggingface.co/apozz/sam3-safetensors/resolve/main/sam3.safetensors" "$SAM3_DIR/sam3.safetensors"
 
 declare -A MODEL_CATEGORIES=(
     ["$NETWORK_VOLUME/ComfyUI/models/checkpoints"]="$CHECKPOINT_IDS_TO_DOWNLOAD"
@@ -589,6 +592,31 @@ ensure_required_vae_models() {
 
 if ! ensure_required_vae_models; then
     echo "VAE preflight failed; refusing to start ComfyUI."
+    exit 1
+fi
+
+ensure_required_sam3_model() {
+    local sam3_path="$SAM3_DIR/sam3.safetensors"
+    if [ ! -f "$sam3_path" ]; then
+        echo "❌ Missing SAM3 model: $sam3_path"
+        log_timing "preflight" "sam3_model" "failed_missing" "$INSTALL_START_TS" "$(date +%s)" "0" "$sam3_path"
+        return 1
+    fi
+
+    local size_bytes
+    size_bytes=$(stat -f%z "$sam3_path" 2>/dev/null || stat -c%s "$sam3_path" 2>/dev/null || echo 0)
+    if [ "$size_bytes" -lt 10485760 ]; then
+        echo "❌ SAM3 model appears incomplete (<10MB): $sam3_path"
+        log_timing "preflight" "sam3_model" "failed_incomplete" "$INSTALL_START_TS" "$(date +%s)" "$size_bytes" "$sam3_path"
+        return 1
+    fi
+
+    log_timing "preflight" "sam3_model" "success" "$INSTALL_START_TS" "$(date +%s)" "$size_bytes" "$sam3_path"
+    return 0
+}
+
+if ! ensure_required_sam3_model; then
+    echo "SAM3 preflight failed; refusing to start ComfyUI."
     exit 1
 fi
 
