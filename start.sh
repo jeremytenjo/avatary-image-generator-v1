@@ -494,9 +494,9 @@ download_model_bg "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/s
 
 download_model_bg "https://huggingface.co/jeremyhola/LORAs/resolve/main/aiorbust/nsfw/z_image_turbo.safetensors" "$DIFFUSION_MODELS_DIR/z-image-turbo-nsfw.safetensors"
 
-download_model_bg "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors" "$VAE_DIR/ae.safetensors"
+download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/ae.safetensors" "$VAE_DIR/ae.safetensors"
 
-download_model_bg "https://huggingface.co/dci05049/z-image-lora/resolve/main/z_image_vae.safetensors" "$VAE_DIR/z_image_vae.safetensors"
+download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/z_image_vae.safetensors" "$VAE_DIR/z_image_vae.safetensors"
 
 download_model_bg "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors" "$TEXT_ENCODERS_DIR/qwen_3_4b.safetensors"
 
@@ -509,7 +509,7 @@ download_model_bg "https://huggingface.co/BennyDaBall/Qwen3-4b-Z-Image-Engineer-
 # SeedVR2 models (prefetched to avoid first-run auto-download latency)
 download_model_bg "https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/seedvr2_ema_7b_fp16.safetensors" "$SEEDVR2_DIR/seedvr2_ema_7b_fp16.safetensors"
 
-download_model_bg "https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/ema_vae_fp16.safetensors" "$SEEDVR2_DIR/ema_vae_fp16.safetensors"
+download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/ema_vae_fp16.safetensors" "$SEEDVR2_DIR/ema_vae_fp16.safetensors"
 
 # SAM3 model used by ComfyUI-RMBG (prefetched to avoid first-run auto-download latency)
 download_model_bg "https://huggingface.co/1038lab/sam3/resolve/main/sam3.pt" "$SAM3_DIR/sam3.pt"
