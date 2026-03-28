@@ -492,7 +492,7 @@ download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/z_image_
 
 download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/z_image_turbo_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_turbo.safetensors"
 
-download_model_bg "https://huggingface.co/jeremyhola/LORAs/resolve/main/aiorbust/nsfw/z_image_turbo.safetensors" "$DIFFUSION_MODELS_DIR/z-image-turbo-nsfw.safetensors"
+download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/z_image_turbo.safetensors" "$DIFFUSION_MODELS_DIR/z-image-turbo-nsfw.safetensors"
 
 download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/ae.safetensors" "$VAE_DIR/ae.safetensors"
 
