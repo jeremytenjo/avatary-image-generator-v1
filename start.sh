@@ -488,29 +488,17 @@ MODEL_ID_DOWNLOAD_PIDS=()
 MODEL_ID_DOWNLOAD_LABELS=()
 
 # Models
-download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/z_image_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_bf16.safetensors"
-
-download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/z_image_turbo_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_turbo.safetensors"
-
-download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/z_image_turbo.safetensors" "$DIFFUSION_MODELS_DIR/z-image-turbo-nsfw.safetensors"
-
 download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/ae.safetensors" "$VAE_DIR/ae.safetensors"
-
-download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/z_image_vae.safetensors" "$VAE_DIR/z_image_vae.safetensors"
-
 download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/qwen_3_4b.safetensors" "$TEXT_ENCODERS_DIR/qwen_3_4b.safetensors"
-
-download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/Z-Image-AbliteratedV1.f16.gguf" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.gguf"
-
-download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/Z-Image-AbliteratedV1.f16.safetensors" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.safetensors"
-
 download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf" "$TEXT_ENCODERS_DIR/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf"
-
+download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/z_image_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_bf16.safetensors"
+download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/z_image_turbo_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_turbo.safetensors"
+download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/z_image_turbo.safetensors" "$DIFFUSION_MODELS_DIR/z-image-turbo-nsfw.safetensors"
+download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/z_image_vae.safetensors" "$VAE_DIR/z_image_vae.safetensors"
+download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/Z-Image-AbliteratedV1.f16.gguf" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.gguf"
+download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/Z-Image-AbliteratedV1.f16.safetensors" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.safetensors"
 download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/seedvr2_ema_7b_fp16.safetensors" "$SEEDVR2_DIR/seedvr2_ema_7b_fp16.safetensors"
-
 download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/ema_vae_fp16.safetensors" "$SEEDVR2_DIR/ema_vae_fp16.safetensors"
-
-# SAM3 model used by ComfyUI-RMBG (prefetched to avoid first-run auto-download latency)
 download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/sam3.pt" "$SAM3_DIR/sam3.pt"
 
 declare -A MODEL_CATEGORIES=(
