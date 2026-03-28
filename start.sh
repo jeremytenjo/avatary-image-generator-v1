@@ -383,6 +383,7 @@ download_model_bg() {
     local full_path="$2"
     download_model "$url" "$full_path" &
     PRIMARY_MODEL_DOWNLOAD_PIDS+=($!)
+    PRIMARY_MODEL_DOWNLOAD_LABELS+=("$full_path")
 }
 
 download_model_id_bg() {
@@ -402,6 +403,7 @@ download_model_id_bg() {
         exit $rc
     ) &
     MODEL_ID_DOWNLOAD_PIDS+=($!)
+    MODEL_ID_DOWNLOAD_LABELS+=("$model_id")
 }
 
 # Define base paths
@@ -417,7 +419,9 @@ LATENT_UPSCALE_DIR="$NETWORK_VOLUME/ComfyUI/models/latent_upscale_models"
 echo "📦 Starting model downloads..."
 
 PRIMARY_MODEL_DOWNLOAD_PIDS=()
+PRIMARY_MODEL_DOWNLOAD_LABELS=()
 MODEL_ID_DOWNLOAD_PIDS=()
+MODEL_ID_DOWNLOAD_LABELS=()
 
 download_model_bg "https://huggingface.co/Comfy-Org/z_image/resolve/main/split_files/diffusion_models/z_image_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_bf16.safetensors"
 
@@ -474,17 +478,25 @@ echo "Scheduled $download_count downloads in background"
 
 wait_for_all_model_downloads() {
     local failed_downloads=0
+    local -a failed_items=()
+    local i
     echo "Waiting for primary model downloads to complete..."
-    for pid in "${PRIMARY_MODEL_DOWNLOAD_PIDS[@]}"; do
+    for i in "${!PRIMARY_MODEL_DOWNLOAD_PIDS[@]}"; do
+        local pid="${PRIMARY_MODEL_DOWNLOAD_PIDS[$i]}"
+        local label="${PRIMARY_MODEL_DOWNLOAD_LABELS[$i]}"
         if ! wait "$pid"; then
             failed_downloads=$((failed_downloads + 1))
+            failed_items+=("$label")
         fi
     done
 
     echo "Waiting for model-id downloads to complete..."
-    for pid in "${MODEL_ID_DOWNLOAD_PIDS[@]}"; do
+    for i in "${!MODEL_ID_DOWNLOAD_PIDS[@]}"; do
+        local pid="${MODEL_ID_DOWNLOAD_PIDS[$i]}"
+        local label="${MODEL_ID_DOWNLOAD_LABELS[$i]}"
         if ! wait "$pid"; then
             failed_downloads=$((failed_downloads + 1))
+            failed_items+=("$label")
         fi
     done
 
@@ -495,6 +507,11 @@ wait_for_all_model_downloads() {
     done
     if [ "$failed_downloads" -gt 0 ]; then
         echo "❌ $failed_downloads model download task(s) failed. See $TIMING_LOG for details."
+        echo "Failed model download items:"
+        local failed_item
+        for failed_item in "${failed_items[@]}"; do
+            echo " - $failed_item"
+        done
         log_timing "installation" "model_downloads" "failed" "$INSTALL_START_TS" "$(date +%s)" "0" "$TIMING_LOG"
         return 1
     fi
