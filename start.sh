@@ -46,6 +46,8 @@ fi
 INSTALL_START_TS=$(date +%s)
 mkdir -p "$NETWORK_VOLUME"
 
+apply_flash_attn_runtime_hotfix
+
 
 COMFYUI_DIR="$NETWORK_VOLUME/ComfyUI"
 CUSTOM_NODES_DIR="$NETWORK_VOLUME/ComfyUI/custom_nodes"
