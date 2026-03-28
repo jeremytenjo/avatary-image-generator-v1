@@ -500,7 +500,7 @@ download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/z_image_
 
 download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/qwen_3_4b.safetensors" "$TEXT_ENCODERS_DIR/qwen_3_4b.safetensors"
 
-download_model_bg "https://huggingface.co/BennyDaBall/Qwen3-4b-Z-Image-Turbo-AbliteratedV1/resolve/main/Z-Image-AbliteratedV1.f16.gguf" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.gguf"
+download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/Z-Image-AbliteratedV1.f16.gguf" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.gguf"
 
 download_model_bg "https://huggingface.co/jeremyhola/LORAs/resolve/main/aiorbust/nsfw/Z-Image-AbliteratedV1.f16.safetensors" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.safetensors"
 
