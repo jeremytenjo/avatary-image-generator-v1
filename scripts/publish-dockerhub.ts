@@ -100,7 +100,7 @@ function printHelp(): void {
 
 Options:
   --username <name>     Docker Hub username (default: tenjojeremy)
-  --image <name>        Image name (default: avatary-content-generator)
+  --image <name>        Image name (default: avatary-image-generator-v1)
   --platform <value>    Build platform (default: linux/amd64)
   --context <path>      Docker build context (default: .)
   --bump <type>         Auto-bump version: patch | minor | major
@@ -248,7 +248,7 @@ async function main(): Promise<void> {
       process.env.DOCKERHUB_USERNAME ||
       savedConfig.username ||
       DEFAULT_DOCKERHUB_USERNAME,
-    image: savedConfig.image || 'avatary-content-generator',
+    image: savedConfig.image || 'avatary-image-generator-v1',
     platform: savedConfig.platform || 'linux/amd64',
     context: savedConfig.context || '.',
     latest: savedConfig.latest || false,
