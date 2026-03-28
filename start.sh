@@ -263,6 +263,7 @@ cd "$CUSTOM_NODES_DIR" || exit 1
 install_or_update_custom_node() {
     local repo_url="$1"
     local repo_dir="$2"
+    local repo_ref="$3"
     local node_path="$CUSTOM_NODES_DIR/$repo_dir"
     local start_ts
     local end_ts
@@ -270,8 +271,16 @@ install_or_update_custom_node() {
     start_ts=$(date +%s)
 
     if [ -d "$node_path/.git" ]; then
-        echo "Updating custom node: $repo_dir"
-        git -C "$node_path" pull --ff-only || rc=$?
+        if [ -n "$repo_ref" ]; then
+            echo "Updating custom node: $repo_dir (pinned ref: $repo_ref)"
+            git -C "$node_path" fetch --tags --prune origin || rc=$?
+            if [ $rc -eq 0 ]; then
+                git -C "$node_path" checkout -q "$repo_ref" || rc=$?
+            fi
+        else
+            echo "Updating custom node: $repo_dir"
+            git -C "$node_path" pull --ff-only || rc=$?
+        fi
         end_ts=$(date +%s)
         if [ $rc -eq 0 ]; then
             log_timing "custom_node_install" "$repo_dir" "updated" "$start_ts" "$end_ts" "0" "$repo_url"
@@ -280,8 +289,16 @@ install_or_update_custom_node() {
             return $rc
         fi
     else
-        echo "Installing custom node: $repo_dir"
-        git clone --depth 1 "$repo_url" "$node_path" || rc=$?
+        if [ -n "$repo_ref" ]; then
+            echo "Installing custom node: $repo_dir (pinned ref: $repo_ref)"
+            git clone "$repo_url" "$node_path" || rc=$?
+            if [ $rc -eq 0 ]; then
+                git -C "$node_path" checkout -q "$repo_ref" || rc=$?
+            fi
+        else
+            echo "Installing custom node: $repo_dir"
+            git clone --depth 1 "$repo_url" "$node_path" || rc=$?
+        fi
         end_ts=$(date +%s)
         if [ $rc -eq 0 ]; then
             log_timing "custom_node_install" "$repo_dir" "installed" "$start_ts" "$end_ts" "0" "$repo_url"
@@ -318,7 +335,8 @@ echo "Ensuring required custom nodes are installed..."
 require_custom_node() {
     local repo_url="$1"
     local repo_dir="$2"
-    if ! install_or_update_custom_node "$repo_url" "$repo_dir"; then
+    local repo_ref="$3"
+    if ! install_or_update_custom_node "$repo_url" "$repo_dir" "$repo_ref"; then
         local end_ts
         end_ts=$(date +%s)
         echo "❌ Required custom node install/update failed: $repo_dir"
@@ -328,7 +346,7 @@ require_custom_node() {
 }
 
 require_custom_node "https://github.com/ltdrdata/was-node-suite-comfyui.git" "was-node-suite-comfyui"
-require_custom_node "https://github.com/ltdrdata/ComfyUI-Manager.git" "ComfyUI-Manager"
+require_custom_node "https://github.com/ltdrdata/ComfyUI-Manager.git" "ComfyUI-Manager" "4.1"
 require_custom_node "https://github.com/1038lab/ComfyUI-RMBG.git" "ComfyUI-RMBG"
 require_custom_node "https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch.git" "ComfyUI-Inpaint-CropAndStitch"
 require_custom_node "https://github.com/city96/ComfyUI-GGUF.git" "ComfyUI-GGUF"
