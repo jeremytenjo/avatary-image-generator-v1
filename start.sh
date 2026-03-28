@@ -96,10 +96,6 @@ else
     log_timing "pip_install" "onnxruntime-gpu" "skipped_disabled" "$onnx_now_ts" "$onnx_now_ts" "0" "env:INSTALL_ONNXRUNTIME_AT_STARTUP"
 fi
 
-
-export change_preview_method="true"
-
-
 # Change to the directory
 mkdir -p "$CUSTOM_NODES_DIR"
 cd "$CUSTOM_NODES_DIR" || exit 1
@@ -118,13 +114,7 @@ require_custom_node "comfyui-easy-use" "ComfyUI-Easy-Use" "1.3.6"
 require_custom_node "seedvr2_videoupscaler" "ComfyUI-SeedVR2_VideoUpscaler" "2.5.22"
 require_custom_node "comfyui_essentials" "ComfyUI_essentials" "1.1.0"
 
-
-# Function to download a model using huggingface-cli
-
-
-
 # Define base paths
-# Define base paths (Ensure $NETWORK_VOLUME is set in your environment)
 DIFFUSION_MODELS_DIR="$NETWORK_VOLUME/ComfyUI/models/diffusion_models"
 TEXT_ENCODERS_DIR="$NETWORK_VOLUME/ComfyUI/models/text_encoders"
 VAE_DIR="$NETWORK_VOLUME/ComfyUI/models/vae"
@@ -191,11 +181,10 @@ echo "Scheduled $download_count downloads in background"
 # Ensure the file exists in the current directory before moving it
 cd /
 
-if [ "$change_preview_method" == "true" ]; then
-    echo "Updating default preview method..."
-    sed -i '/id: *'"'"'VHS.LatentPreview'"'"'/,/defaultValue:/s/defaultValue: false/defaultValue: true/' $NETWORK_VOLUME/ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite/web/js/VHS.core.js
-    CONFIG_PATH="$NETWORK_VOLUME/ComfyUI/user/default/ComfyUI-Manager"
-    CONFIG_FILE="$CONFIG_PATH/config.ini"
+echo "Updating default preview method..."
+sed -i '/id: *'"'"'VHS.LatentPreview'"'"'/,/defaultValue:/s/defaultValue: false/defaultValue: true/' $NETWORK_VOLUME/ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite/web/js/VHS.core.js
+CONFIG_PATH="$NETWORK_VOLUME/ComfyUI/user/default/ComfyUI-Manager"
+CONFIG_FILE="$CONFIG_PATH/config.ini"
 
 # Ensure the directory exists
 mkdir -p "$CONFIG_PATH"
@@ -228,10 +217,7 @@ else
     sed -i 's/^preview_method = .*/preview_method = auto/' "$CONFIG_FILE"
 fi
 echo "Config file setup complete!"
-    echo "Default preview method updated to 'auto'"
-else
-    echo "Skipping preview method update (change_preview_method is not 'true')."
-fi
+echo "Default preview method updated to 'auto'"
 
 
 echo "Enabling Modern Node Design (Nodes 2.0) by default..."
