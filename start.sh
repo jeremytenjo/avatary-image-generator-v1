@@ -459,8 +459,6 @@ download_model_bg "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/s
 
 download_model_bg "https://huggingface.co/jeremyhola/LORAs/resolve/main/aiorbust/nsfw/z_image_turbo.safetensors" "$DIFFUSION_MODELS_DIR/z-image-turbo-nsfw.safetensors"
 
-download_model_bg "https://huggingface.co/dci05049/z-image-lora/resolve/main/instagram_zimageturbo.safetensors" "$LORAS_DIR/instagram_zimageturbo.safetensors"
-
 download_model_bg "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors" "$VAE_DIR/ae.safetensors"
 
 download_model_bg "https://huggingface.co/dci05049/z-image-lora/resolve/main/z_image_vae.safetensors" "$VAE_DIR/z_image_vae.safetensors"
@@ -472,8 +470,6 @@ download_model_bg "https://huggingface.co/BennyDaBall/Qwen3-4b-Z-Image-Turbo-Abl
 download_model_bg "https://huggingface.co/jeremyhola/LORAs/resolve/main/aiorbust/nsfw/Z-Image-AbliteratedV1.f16.safetensors" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.safetensors"
 
 download_model_bg "https://huggingface.co/BennyDaBall/Qwen3-4b-Z-Image-Engineer-V4/resolve/main/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf" "$TEXT_ENCODERS_DIR/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf"
-
-download_model_bg "https://huggingface.co/dci05049/z-image-lora/resolve/main/Sally_Lokr.safetensors" "$LORAS_DIR/Sally_Lokr.safetensors"
 
 declare -A MODEL_CATEGORIES=(
     ["$NETWORK_VOLUME/ComfyUI/models/checkpoints"]="$CHECKPOINT_IDS_TO_DOWNLOAD"
