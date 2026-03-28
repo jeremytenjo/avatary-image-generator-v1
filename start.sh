@@ -212,9 +212,21 @@ if [ ! -d "$COMFYUI_DIR" ]; then
     mv /ComfyUI "$COMFYUI_DIR"
 else
     echo "Directory already exists, skipping move."
-    # Ensure missing base folders from image are present on persisted volumes.
+    # Refresh core ComfyUI files from the image on persisted volumes while
+    # preserving runtime/user state.
     if [ -d /ComfyUI ]; then
-        cp -an /ComfyUI/. "$COMFYUI_DIR"/
+        if command -v rsync > /dev/null 2>&1; then
+            rsync -au \
+                --exclude 'user/' \
+                --exclude 'models/' \
+                --exclude 'custom_nodes/' \
+                --exclude 'input/' \
+                --exclude 'output/' \
+                /ComfyUI/ "$COMFYUI_DIR"/
+        else
+            # Fallback when rsync is unavailable: update existing files in place.
+            cp -au /ComfyUI/. "$COMFYUI_DIR"/
+        fi
     fi
 fi
 
