@@ -24,6 +24,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY ComfyUI /ComfyUI
 COPY start.sh /start.sh
+COPY handlers /handlers
 
 RUN chmod +x /start.sh
 

@@ -8,9 +8,12 @@ export LD_PRELOAD="${TCMALLOC}"
 USE_SAGE_ATTENTION="${USE_SAGE_ATTENTION:-0}"
 INSTALL_ONNXRUNTIME_AT_STARTUP="${INSTALL_ONNXRUNTIME_AT_STARTUP:-0}"
 
-log_boot_timing() {
-    :
-}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+for handler_file in "$SCRIPT_DIR"/handlers/*.sh; do
+    # shellcheck source=/dev/null
+    source "$handler_file"
+done
+
 
 if ! which curl > /dev/null 2>&1; then
     curl_start_ts=$(date +%s)
@@ -70,9 +73,6 @@ fi
 INSTALL_START_TS=$(date +%s)
 mkdir -p "$NETWORK_VOLUME"
 
-log_timing() {
-    :
-}
 
 COMFYUI_DIR="$NETWORK_VOLUME/ComfyUI"
 WORKFLOW_DIR="$NETWORK_VOLUME/ComfyUI/user/default/workflows"
@@ -130,117 +130,8 @@ export change_preview_method="true"
 mkdir -p "$CUSTOM_NODES_DIR"
 cd "$CUSTOM_NODES_DIR" || exit 1
 
-install_or_update_custom_node_cnr() {
-    local cnr_id="$1"
-    local repo_dir="$2"
-    local cnr_version="$3"
-    local node_path="$CUSTOM_NODES_DIR/$repo_dir"
-    local start_ts
-    local end_ts
-    local rc=0
-    local archive_name=""
-    local archive_path=""
-    local metadata_json=""
-    local download_url=""
-    local resolved_version=""
-    start_ts=$(date +%s)
-
-    echo "Installing custom node from CNR: $repo_dir ($cnr_id@$cnr_version)"
-
-    metadata_json="$(curl -fsSL "https://api.comfy.org/nodes/${cnr_id}/install?version=${cnr_version}")" || rc=$?
-    if [ $rc -ne 0 ]; then
-        end_ts=$(date +%s)
-        log_timing "custom_node_install" "$repo_dir" "install_failed" "$start_ts" "$end_ts" "0" "cnr:${cnr_id}@${cnr_version}"
-        return $rc
-    fi
-
-    download_url="$(printf '%s' "$metadata_json" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("downloadUrl") or "").strip())')"
-    resolved_version="$(printf '%s' "$metadata_json" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("version") or "").strip())')"
-    if [ -z "$download_url" ] || [ -z "$resolved_version" ]; then
-        end_ts=$(date +%s)
-        log_timing "custom_node_install" "$repo_dir" "install_failed_invalid_metadata" "$start_ts" "$end_ts" "0" "cnr:${cnr_id}@${cnr_version}"
-        return 1
-    fi
-
-    if [ -f "$node_path/.cnr-version" ] && [ -d "$node_path" ]; then
-        local installed_version
-        installed_version="$(cat "$node_path/.cnr-version" 2>/dev/null || true)"
-        if [ "$installed_version" = "$resolved_version" ]; then
-            end_ts=$(date +%s)
-            log_timing "custom_node_install" "$repo_dir" "skipped_existing_version" "$start_ts" "$end_ts" "0" "cnr:${cnr_id}@${resolved_version}"
-            return 0
-        fi
-    fi
-
-    archive_name="CNR_${repo_dir}_$(date +%s).zip"
-    archive_path="/tmp/${archive_name}"
-    rm -f "$archive_path"
-    curl --fail --location --retry 5 --retry-delay 2 --continue-at - --output "$archive_path" "$download_url" || rc=$?
-    if [ $rc -ne 0 ]; then
-        end_ts=$(date +%s)
-        log_timing "custom_node_install" "$repo_dir" "install_failed_download" "$start_ts" "$end_ts" "0" "$download_url"
-        return $rc
-    fi
-
-    rm -rf "$node_path"
-    mkdir -p "$node_path"
-    python3 - "$archive_path" "$node_path" <<'PY'
-import sys
-import zipfile
-
-archive_path = sys.argv[1]
-target_dir = sys.argv[2]
-with zipfile.ZipFile(archive_path, "r") as zf:
-    zf.extractall(target_dir)
-PY
-    rc=$?
-    rm -f "$archive_path"
-    if [ $rc -ne 0 ]; then
-        end_ts=$(date +%s)
-        log_timing "custom_node_install" "$repo_dir" "install_failed_extract" "$start_ts" "$end_ts" "0" "cnr:${cnr_id}@${resolved_version}"
-        return $rc
-    fi
-
-    echo "$resolved_version" > "$node_path/.cnr-version"
-    end_ts=$(date +%s)
-    log_timing "custom_node_install" "$repo_dir" "installed" "$start_ts" "$end_ts" "0" "cnr:${cnr_id}@${resolved_version}"
-
-    # Install custom node dependencies when provided by the node pack.
-    if [ -f "$node_path/requirements.txt" ]; then
-        local dep_start_ts
-        local dep_end_ts
-        dep_start_ts=$(date +%s)
-        pip install -r "$node_path/requirements.txt"
-        rc=$?
-        dep_end_ts=$(date +%s)
-        if [ $rc -eq 0 ]; then
-            log_timing "custom_node_deps" "$repo_dir" "success" "$dep_start_ts" "$dep_end_ts" "0" "$node_path/requirements.txt"
-        else
-            log_timing "custom_node_deps" "$repo_dir" "failed" "$dep_start_ts" "$dep_end_ts" "0" "$node_path/requirements.txt"
-            return $rc
-        fi
-    else
-        local dep_now_ts
-        dep_now_ts=$(date +%s)
-        log_timing "custom_node_deps" "$repo_dir" "skipped_no_requirements" "$dep_now_ts" "$dep_now_ts" "0" "$node_path"
-    fi
-
-    return 0
-}
 
 echo "Ensuring required custom nodes are installed..."
-require_custom_node() {
-    local cnr_id="$1"
-    local repo_dir="$2"
-    local cnr_version="$3"
-    if ! install_or_update_custom_node_cnr "$cnr_id" "$repo_dir" "$cnr_version"; then
-        local end_ts
-        end_ts=$(date +%s)
-        echo "❌ Required custom node install/update failed: $repo_dir"
-        log_timing "custom_node_install" "$repo_dir" "required_failed_abort" "$INSTALL_START_TS" "$end_ts" "0" "cnr:${cnr_id}@${cnr_version}"
-        exit 1
-    fi
-}
 
 # Custom Nodes
 require_custom_node "was-ns" "was-node-suite-comfyui" "3.0.1"
@@ -255,85 +146,8 @@ require_custom_node "comfyui_essentials" "ComfyUI_essentials" "1.1.0"
 
 
 # Function to download a model using huggingface-cli
-download_model() {
-    local url="$1"
-    local full_path="$2"
-    local hf_token="${HUGGINGFACE_TOKEN:-}"
-    local start_ts=$(date +%s)
 
-    local destination_dir=$(dirname "$full_path")
-    local destination_file=$(basename "$full_path")
 
-    mkdir -p "$destination_dir"
-
-    # Corruption check
-    if [ -f "$full_path" ]; then
-        local size_bytes=$(stat -f%z "$full_path" 2>/dev/null || stat -c%s "$full_path" 2>/dev/null || echo 0)
-        if [ "$size_bytes" -lt 10485760 ]; then
-            echo "🗑️  Deleting corrupted file: $full_path"
-            rm -f "$full_path"
-        else
-            echo "✅ $destination_file already exists, skipping."
-            log_timing "direct_download" "$destination_file" "skipped_existing" "$start_ts" "$(date +%s)" "$size_bytes" "$url"
-            return 0
-        fi
-    fi
-
-    echo "📥 Downloading $destination_file..."
-    local -a curl_args=(
-        --fail
-        --location
-        --retry 5
-        --retry-delay 2
-        --continue-at -
-        --output "$full_path"
-    )
-    if [ -n "$hf_token" ]; then
-        curl_args+=(--header "Authorization: Bearer $hf_token")
-    else
-        echo "⚠️  HUGGINGFACE_TOKEN not set; downloading without Authorization header."
-    fi
-    curl "${curl_args[@]}" "$url"
-    local rc=$?
-    local size_bytes=$(stat -f%z "$full_path" 2>/dev/null || stat -c%s "$full_path" 2>/dev/null || echo 0)
-    local end_ts=$(date +%s)
-    if [ $rc -eq 0 ]; then
-        log_timing "direct_download" "$destination_file" "success" "$start_ts" "$end_ts" "$size_bytes" "$url"
-    else
-        log_timing "direct_download" "$destination_file" "failed" "$start_ts" "$end_ts" "$size_bytes" "$url"
-    fi
-
-    echo "Download started in background for $destination_file"
-    return $rc
-}
-
-download_model_bg() {
-    local url="$1"
-    local full_path="$2"
-    download_model "$url" "$full_path" &
-    PRIMARY_MODEL_DOWNLOAD_PIDS+=($!)
-    PRIMARY_MODEL_DOWNLOAD_LABELS+=("$full_path")
-}
-
-download_model_id_bg() {
-    local target_dir="$1"
-    local model_id="$2"
-    (
-        local start_ts=$(date +%s)
-        cd "$target_dir" || exit 1
-        download_with_aria.py -m "$model_id"
-        local rc=$?
-        local end_ts=$(date +%s)
-        if [ $rc -eq 0 ]; then
-            log_timing "model_id_download" "$model_id" "success" "$start_ts" "$end_ts" "0" "$target_dir"
-        else
-            log_timing "model_id_download" "$model_id" "failed" "$start_ts" "$end_ts" "0" "$target_dir"
-        fi
-        exit $rc
-    ) &
-    MODEL_ID_DOWNLOAD_PIDS+=($!)
-    MODEL_ID_DOWNLOAD_LABELS+=("$model_id")
-}
 
 # Define base paths
 # Define base paths (Ensure $NETWORK_VOLUME is set in your environment)
@@ -399,43 +213,6 @@ done
 
 echo "Scheduled $download_count downloads in background"
 
-wait_for_all_model_downloads() {
-    local failed_downloads=0
-    local -a failed_items=()
-    local i
-    echo "Waiting for primary model downloads to complete..."
-    for i in "${!PRIMARY_MODEL_DOWNLOAD_PIDS[@]}"; do
-        local pid="${PRIMARY_MODEL_DOWNLOAD_PIDS[$i]}"
-        local label="${PRIMARY_MODEL_DOWNLOAD_LABELS[$i]}"
-        if ! wait "$pid"; then
-            failed_downloads=$((failed_downloads + 1))
-            failed_items+=("$label")
-        fi
-    done
-
-    echo "Waiting for model-id downloads to complete..."
-    for i in "${!MODEL_ID_DOWNLOAD_PIDS[@]}"; do
-        local pid="${MODEL_ID_DOWNLOAD_PIDS[$i]}"
-        local label="${MODEL_ID_DOWNLOAD_LABELS[$i]}"
-        if ! wait "$pid"; then
-            failed_downloads=$((failed_downloads + 1))
-            failed_items+=("$label")
-        fi
-    done
-
-    if [ "$failed_downloads" -gt 0 ]; then
-        echo "❌ $failed_downloads model download task(s) failed."
-        echo "Failed model download items:"
-        local failed_item
-        for failed_item in "${failed_items[@]}"; do
-            echo " - $failed_item"
-        done
-        log_timing "installation" "model_downloads" "failed" "$INSTALL_START_TS" "$(date +%s)" "0" "model_downloads"
-        return 1
-    fi
-    echo "All model downloads completed"
-    return 0
-}
 
 # Ensure the file exists in the current directory before moving it
 cd /
@@ -482,35 +259,6 @@ else
     echo "Skipping preview method update (change_preview_method is not 'true')."
 fi
 
-ensure_nodes2_enabled() {
-    local settings_dir="$NETWORK_VOLUME/ComfyUI/user/default"
-    local settings_file="$settings_dir/comfy.settings.json"
-    mkdir -p "$settings_dir"
-
-    python3 - "$settings_file" <<'PY'
-import json
-import os
-import sys
-
-settings_file = sys.argv[1]
-data = {}
-
-if os.path.exists(settings_file):
-    try:
-        with open(settings_file, "r", encoding="utf-8") as f:
-            loaded = json.load(f)
-        if isinstance(loaded, dict):
-            data = loaded
-    except Exception:
-        data = {}
-
-data["Comfy.VueNodes.Enabled"] = True
-
-with open(settings_file, "w", encoding="utf-8") as f:
-    json.dump(data, f, indent=4)
-    f.write("\n")
-PY
-}
 
 echo "Enabling Modern Node Design (Nodes 2.0) by default..."
 ensure_nodes2_enabled
@@ -522,96 +270,18 @@ echo "cd $NETWORK_VOLUME" >> ~/.bashrc
 
 
 echo "Renaming loras downloaded as zip files to safetensors files"
-finalize_model_downloads() {
-    local install_finish_start_ts=$(date +%s)
-    if ! wait_for_all_model_downloads; then
-        return 1
-    fi
-    cd "$LORAS_DIR"
-    for file in *.zip; do
-        [ -f "$file" ] || continue
-        mv "$file" "${file%.zip}.safetensors"
-    done
-    local install_end_ts=$(date +%s)
-    log_timing "installation" "all_downloads" "completed" "$INSTALL_START_TS" "$install_end_ts" "0" "all_downloads"
-    log_timing "installation" "finalize_step" "completed" "$install_finish_start_ts" "$install_end_ts" "0" "finalize_step"
-}
 
 if ! finalize_model_downloads; then
     echo "Model installation failed; refusing to start ComfyUI."
     exit 1
 fi
 
-ensure_required_text_encoders() {
-    local missing=0
-    local encoder_path=""
-    local -a required_text_encoders=(
-        "$TEXT_ENCODERS_DIR/qwen_3_4b.safetensors"
-        "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.gguf"
-        "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.safetensors"
-        "$TEXT_ENCODERS_DIR/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf"
-    )
-
-    for encoder_path in "${required_text_encoders[@]}"; do
-        if [ ! -f "$encoder_path" ]; then
-            echo "❌ Missing text encoder: $encoder_path"
-            missing=$((missing + 1))
-            continue
-        fi
-
-        local size_bytes
-        size_bytes=$(stat -f%z "$encoder_path" 2>/dev/null || stat -c%s "$encoder_path" 2>/dev/null || echo 0)
-        if [ "$size_bytes" -lt 10485760 ]; then
-            echo "❌ Text encoder appears incomplete (<10MB): $encoder_path"
-            missing=$((missing + 1))
-        fi
-    done
-
-    if [ "$missing" -gt 0 ]; then
-        log_timing "preflight" "text_encoders" "failed_missing_or_incomplete" "$INSTALL_START_TS" "$(date +%s)" "0" "$TEXT_ENCODERS_DIR"
-        return 1
-    fi
-
-    log_timing "preflight" "text_encoders" "success" "$INSTALL_START_TS" "$(date +%s)" "0" "$TEXT_ENCODERS_DIR"
-    return 0
-}
 
 if ! ensure_required_text_encoders; then
     echo "Text encoder preflight failed; refusing to start ComfyUI."
     exit 1
 fi
 
-ensure_required_vae_models() {
-    local missing=0
-    local vae_path=""
-    local -a required_vae_models=(
-        "$VAE_DIR/ae.safetensors"
-        "$VAE_DIR/z_image_vae.safetensors"
-    )
-
-    for vae_path in "${required_vae_models[@]}"; do
-        if [ ! -f "$vae_path" ]; then
-            echo "❌ Missing VAE model: $vae_path"
-            missing=$((missing + 1))
-            continue
-        fi
-
-        local size_bytes
-        size_bytes=$(stat -f%z "$vae_path" 2>/dev/null || stat -c%s "$vae_path" 2>/dev/null || echo 0)
-        if [ "$size_bytes" -lt 10485760 ]; then
-            echo "❌ VAE model appears incomplete (<10MB): $vae_path"
-            missing=$((missing + 1))
-        fi
-    done
-
-    if [ "$missing" -gt 0 ]; then
-        log_timing "preflight" "vae_models" "failed_missing_or_incomplete" "$INSTALL_START_TS" "$(date +%s)" "0" "$VAE_DIR"
-        return 1
-    fi
-
-    log_timing "preflight" "vae_models" "success" "$INSTALL_START_TS" "$(date +%s)" "0" "$VAE_DIR"
-    return 0
-}
 
 if ! ensure_required_vae_models; then
     echo "VAE preflight failed; refusing to start ComfyUI."
