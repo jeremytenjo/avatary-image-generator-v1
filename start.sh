@@ -504,7 +504,7 @@ download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/Z-Image-
 
 download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/Z-Image-AbliteratedV1.f16.safetensors" "$TEXT_ENCODERS_DIR/Z-Image-AbliteratedV1.f16.safetensors"
 
-download_model_bg "https://huggingface.co/BennyDaBall/Qwen3-4b-Z-Image-Engineer-V4/resolve/main/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf" "$TEXT_ENCODERS_DIR/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf"
+download_model_bg "https://huggingface.co/avatary-ai/files/resolve/main/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf" "$TEXT_ENCODERS_DIR/Qwen3-4b-Z-Image-Engineer-V4-F16.gguf"
 
 # SeedVR2 models (prefetched to avoid first-run auto-download latency)
 download_model_bg "https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/seedvr2_ema_7b_fp16.safetensors" "$SEEDVR2_DIR/seedvr2_ema_7b_fp16.safetensors"
