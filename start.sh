@@ -345,11 +345,16 @@ require_custom_node() {
     fi
 }
 
-require_custom_node "https://github.com/ltdrdata/was-node-suite-comfyui.git" "was-node-suite-comfyui"
-require_custom_node "https://github.com/ltdrdata/ComfyUI-Manager.git" "ComfyUI-Manager" "4.1"
-require_custom_node "https://github.com/1038lab/ComfyUI-RMBG.git" "ComfyUI-RMBG"
-require_custom_node "https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch.git" "ComfyUI-Inpaint-CropAndStitch"
-require_custom_node "https://github.com/city96/ComfyUI-GGUF.git" "ComfyUI-GGUF"
+# Custom Nodes
+require_custom_node "https://github.com/ltdrdata/was-node-suite-comfyui.git" "was-node-suite-comfyui" "v3.0.1"
+require_custom_node "https://github.com/ltdrdata/ComfyUI-Manager.git" "ComfyUI-Manager" "v4.1"
+require_custom_node "https://github.com/1038lab/ComfyUI-RMBG.git" "ComfyUI-RMBG" "v3.0.0"
+require_custom_node "https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch.git" "ComfyUI-Inpaint-CropAndStitch" "v3.0.10"
+require_custom_node "https://github.com/city96/ComfyUI-GGUF.git" "ComfyUI-GGUF" "v1.1.10"
+require_custom_node "https://github.com/kijai/ComfyUI-KJNodes.git" "ComfyUI-KJNodes" "v1.3.6"
+require_custom_node "https://github.com/yolain/ComfyUI-Easy-Use.git" "ComfyUI-Easy-Use" "v1.3.6"
+require_custom_node "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git" "ComfyUI-SeedVR2_VideoUpscaler" "v2.5.22"
+require_custom_node "https://github.com/cubiq/ComfyUI_essentials.git" "ComfyUI_essentials" "v1.1.0"
 
 
 # Function to download a model using huggingface-cli
@@ -453,6 +458,7 @@ PRIMARY_MODEL_DOWNLOAD_LABELS=()
 MODEL_ID_DOWNLOAD_PIDS=()
 MODEL_ID_DOWNLOAD_LABELS=()
 
+# Models
 download_model_bg "https://huggingface.co/Comfy-Org/z_image/resolve/main/split_files/diffusion_models/z_image_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_bf16.safetensors"
 
 download_model_bg "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors" "$DIFFUSION_MODELS_DIR/z_image_turbo.safetensors"
