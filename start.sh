@@ -10,24 +10,6 @@ for handler_file in "$SCRIPT_DIR"/handlers/*.sh; do
     source "$handler_file"
 done
 
-
-if ! which curl > /dev/null 2>&1; then
-    curl_start_ts=$(date +%s)
-    echo "Installing curl..."
-    apt-get update && apt-get install -y curl
-    curl_rc=$?
-    curl_end_ts=$(date +%s)
-    if [ $curl_rc -eq 0 ]; then
-        log_boot_timing "package_install" "curl" "success" "$curl_start_ts" "$curl_end_ts" "0" "apt-get"
-    else
-        log_boot_timing "package_install" "curl" "failed" "$curl_start_ts" "$curl_end_ts" "0" "apt-get"
-    fi
-else
-    echo "curl is already installed"
-    curl_now_ts=$(date +%s)
-    log_boot_timing "package_install" "curl" "skipped_existing" "$curl_now_ts" "$curl_now_ts" "0" "apt-get"
-fi
-
 # Set the network volume path
 NETWORK_VOLUME="/workspace"
 URL="http://127.0.0.1:8188"
