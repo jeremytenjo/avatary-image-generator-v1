@@ -48,6 +48,6 @@ download_model() {
         log_timing "direct_download" "$destination_file" "failed" "$start_ts" "$end_ts" "$size_bytes" "$url"
     fi
 
-    echo "Download started in background for $destination_file"
+    echo "⬇️ Download started in background for $destination_file"
     return $rc
 }
