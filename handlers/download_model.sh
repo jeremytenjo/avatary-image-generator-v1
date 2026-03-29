@@ -24,8 +24,9 @@ download_model() {
         fi
     fi
 
-    echo "📥 Downloading $destination_file..."
     local -a curl_args=(
+        --silent
+        --show-error
         --fail
         --location
         --retry 5
@@ -48,6 +49,6 @@ download_model() {
         log_timing "direct_download" "$destination_file" "failed" "$start_ts" "$end_ts" "$size_bytes" "$url"
     fi
 
-    echo "⬇️ Download started in background for $destination_file"
+    echo "⬇️ Downloading in background: $destination_file"
     return $rc
 }
