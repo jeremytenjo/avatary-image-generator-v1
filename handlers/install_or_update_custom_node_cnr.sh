@@ -18,7 +18,7 @@ install_or_update_custom_node_cnr() {
 
     echo "⬇️ Installing $cnr_id@$cnr_version"
 
-    metadata_json="$(curl -fsSL "https://api.comfy.org/nodes/${cnr_id}/install?version=${cnr_version}")" || rc=$?
+    metadata_json="$(curl --silent --show-error -fL "https://api.comfy.org/nodes/${cnr_id}/install?version=${cnr_version}")" || rc=$?
     if [ $rc -ne 0 ]; then
         end_ts=$(date +%s)
         log_timing "custom_node_install" "$repo_dir" "install_failed" "$start_ts" "$end_ts" "0" "cnr:${cnr_id}@${cnr_version}"
@@ -46,7 +46,7 @@ install_or_update_custom_node_cnr() {
     archive_name="CNR_${repo_dir}_$(date +%s).zip"
     archive_path="/tmp/${archive_name}"
     rm -f "$archive_path"
-    curl --fail --location --retry 5 --retry-delay 2 --continue-at - --output "$archive_path" "$download_url" || rc=$?
+    curl --silent --show-error --fail --location --retry 5 --retry-delay 2 --continue-at - --output "$archive_path" "$download_url" || rc=$?
     if [ $rc -ne 0 ]; then
         end_ts=$(date +%s)
         log_timing "custom_node_install" "$repo_dir" "install_failed_download" "$start_ts" "$end_ts" "0" "$download_url"
