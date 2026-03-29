@@ -29,9 +29,6 @@ download_model() {
         --show-error
         --fail
         --location
-        --retry 5
-        --retry-delay 2
-        --continue-at -
         --output "$full_path"
     )
     if [ -n "$hf_token" ]; then
