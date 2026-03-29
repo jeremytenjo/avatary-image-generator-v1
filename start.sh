@@ -78,7 +78,7 @@ custom_node_idx=0
 for custom_node_spec in "${CUSTOM_NODE_SPECS[@]}"; do
     IFS='|' read -r cnr_id repo_dir cnr_version <<< "$custom_node_spec"
     custom_node_idx=$((custom_node_idx + 1))
-    echo "⬇️ [$custom_node_idx/$total_custom_nodes] Installing $repo_dir"
+    echo "⬇️ [$custom_node_idx/$total_custom_nodes] Installing $cnr_id@$cnr_version"
     require_custom_node "$cnr_id" "$repo_dir" "$cnr_version"
 done
 

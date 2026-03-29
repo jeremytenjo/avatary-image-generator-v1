@@ -16,8 +16,6 @@ install_or_update_custom_node_cnr() {
     local resolved_version=""
     start_ts=$(date +%s)
 
-    echo "⬇️ Installing $cnr_id@$cnr_version"
-
     metadata_json="$(curl --silent --show-error -fL "https://api.comfy.org/nodes/${cnr_id}/install?version=${cnr_version}")" || rc=$?
     if [ $rc -ne 0 ]; then
         end_ts=$(date +%s)
