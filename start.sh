@@ -115,6 +115,11 @@ if ! ensure_required_vae_models; then
     exit 1
 fi
 
+if ! ensure_manager_runtime_ready; then
+    echo "ComfyUI manager runtime setup failed; refusing to start ComfyUI with --enable-manager."
+    exit 1
+fi
+
 # Start ComfyUI
 
 echo "Starting ComfyUI"
