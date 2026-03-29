@@ -52,6 +52,8 @@ else
     fi
 fi
 
+enable_nodes_2_default
+
 # Change to the directory
 mkdir -p "$CUSTOM_NODES_DIR"
 cd "$CUSTOM_NODES_DIR" || exit 1
