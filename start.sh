@@ -21,6 +21,7 @@ INSTALL_START_TS=$(date +%s)
 mkdir -p "$NETWORK_VOLUME"
 
 apply_flash_attn_runtime_hotfix 
+configure_torch_cuda_allocator
 
 COMFYUI_DIR="$NETWORK_VOLUME/ComfyUI"
 CUSTOM_NODES_DIR="$NETWORK_VOLUME/ComfyUI/custom_nodes"
@@ -129,6 +130,9 @@ fi
 
 echo "Starting ComfyUI"
 COMFY_ARGS=(--listen --enable-manager)
+if [ "${COMFY_DISABLE_CUDA_MALLOC:-0}" = "1" ]; then
+    COMFY_ARGS+=(--disable-cuda-malloc)
+fi
 COMFY_LOG_PATH="$NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log"
 
 nohup python3 "$NETWORK_VOLUME/ComfyUI/main.py" "${COMFY_ARGS[@]}" > "$COMFY_LOG_PATH" 2>&1 &
