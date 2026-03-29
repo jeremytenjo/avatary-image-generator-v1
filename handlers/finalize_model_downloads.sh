@@ -6,7 +6,10 @@ finalize_model_downloads() {
     if ! wait_for_all_model_downloads; then
         return 1
     fi
-    cd "$LORAS_DIR"
+    if ! cd "$LORAS_DIR"; then
+        echo "❌ Missing lora directory: $LORAS_DIR"
+        return 1
+    fi
     for file in *.zip; do
         [ -f "$file" ] || continue
         mv "$file" "${file%.zip}.safetensors"

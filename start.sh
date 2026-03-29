@@ -27,7 +27,10 @@ CUSTOM_NODES_DIR="$NETWORK_VOLUME/ComfyUI/custom_nodes"
 
 if [ ! -d "$COMFYUI_DIR" ]; then
     mkdir -p "$NETWORK_VOLUME"
-    mv /ComfyUI "$COMFYUI_DIR"
+    if ! mv /ComfyUI "$COMFYUI_DIR"; then
+        echo "Failed to move /ComfyUI into $COMFYUI_DIR"
+        exit 1
+    fi
 else
     echo "Directory already exists, skipping move."
     # Refresh core ComfyUI files from the image on persisted volumes while
@@ -73,6 +76,8 @@ VAE_DIR="$NETWORK_VOLUME/ComfyUI/models/vae"
 export LORAS_DIR="$NETWORK_VOLUME/ComfyUI/models/loras"
 SEEDVR2_DIR="$NETWORK_VOLUME/ComfyUI/models/SEEDVR2"
 SAM3_DIR="$NETWORK_VOLUME/ComfyUI/models/sam3"
+
+mkdir -p "$DIFFUSION_MODELS_DIR" "$TEXT_ENCODERS_DIR" "$VAE_DIR" "$LORAS_DIR" "$SEEDVR2_DIR" "$SAM3_DIR"
 
 echo "📦 Starting model downloads..."
 
@@ -124,8 +129,10 @@ fi
 
 echo "Starting ComfyUI"
 COMFY_ARGS=(--listen --enable-manager)
+COMFY_LOG_PATH="$NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log"
 
-nohup python3 "$NETWORK_VOLUME/ComfyUI/main.py" "${COMFY_ARGS[@]}" > "$NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log" 2>&1 &
+nohup python3 "$NETWORK_VOLUME/ComfyUI/main.py" "${COMFY_ARGS[@]}" > "$COMFY_LOG_PATH" 2>&1 &
+COMFY_PID=$!
 
     # Counter for timeout
     counter=0
@@ -133,11 +140,14 @@ nohup python3 "$NETWORK_VOLUME/ComfyUI/main.py" "${COMFY_ARGS[@]}" > "$NETWORK_V
 
     until curl --silent --fail "$URL" --output /dev/null; do
         if [ $counter -ge $max_wait ]; then
-            echo "ComfyUI should be running if not please reach out to Avatary support."
-            break
+            echo "ComfyUI failed to become ready within ${max_wait}s. Check logs at $COMFY_LOG_PATH"
+            if kill -0 "$COMFY_PID" 2>/dev/null; then
+                kill "$COMFY_PID" 2>/dev/null || true
+            fi
+            exit 1
         fi
 
-        echo "🔄  ComfyUI Starting Up... You can view the startup logs here: $NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID}_nohup.log"
+        echo "🔄  ComfyUI Starting Up... You can view the startup logs here: $COMFY_LOG_PATH"
         sleep 2
         counter=$((counter + 2))
     done
