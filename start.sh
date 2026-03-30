@@ -22,12 +22,13 @@ if ! ensure_comfyui_workspace; then
 fi
 
 enable_nodes_2_default
+serve_setup_instructions_page
 
 echo "Jupyter is running."
 if verify_install_sentinel; then
     echo "Install marker found. Run 'bash /install.sh' to ensure everything is up to date and start ComfyUI."
 else
-    echo "Run 'bash /install.sh' from the Jupyter terminal to install models/nodes and start ComfyUI."
+    echo "⚠️ Run 'bash /install.sh' from the Jupyter terminal to install models/nodes and start ComfyUI."
 fi
 
 sleep infinity

@@ -3,13 +3,16 @@
 
 start_comfyui_service() {
     local url="http://127.0.0.1:8188"
+    local comfy_health_url="$url/system_stats"
     local comfy_log_path="$NETWORK_VOLUME/comfyui_${RUNPOD_POD_ID:-pod}_nohup.log"
     local -a comfy_args=(--listen --enable-manager --disable-cuda-malloc)
 
-    if curl --silent --fail "$url" --output /dev/null; then
+    if curl --silent --fail "$comfy_health_url" --output /dev/null; then
         echo "✅ ComfyUI is already running."
         return 0
     fi
+
+    stop_setup_instructions_page
 
     apply_flash_attn_runtime_hotfix
     configure_torch_cuda_allocator
@@ -26,7 +29,7 @@ start_comfyui_service() {
     local counter=0
     local max_wait=90
 
-    until curl --silent --fail "$url" --output /dev/null; do
+    until curl --silent --fail "$comfy_health_url" --output /dev/null; do
         if [ $counter -ge $max_wait ]; then
             echo "ComfyUI failed to become ready within ${max_wait}s. Check logs at $comfy_log_path"
             if kill -0 "$comfy_pid" 2>/dev/null; then
