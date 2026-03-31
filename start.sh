@@ -34,8 +34,6 @@ if verify_install_sentinel; then
     if ! start_comfyui_service; then
         echo "⚠️ Failed to auto-start ComfyUI. Run 'bash /install.sh' from the Jupyter terminal."
     fi
-else
-    echo "⚠️ Run 'bash /install.sh' from the Jupyter terminal to install models/nodes and start ComfyUI."
 fi
 
 sleep infinity

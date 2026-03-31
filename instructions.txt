@@ -1,0 +1,12 @@
+Avatary Image Generator v1
+
+Usage Instructions:
+
+bash /install.sh
+   
+Runs one-time/full setup: installs or updates ComfyUI, installs required custom nodes and models, 
+enables Manager UI, then starts ComfyUI.
+
+bash /restart-comfyui.sh
+
+Restarts the ComfyUI service only (stop/start + health check). It does not reinstall models or custom nodes.

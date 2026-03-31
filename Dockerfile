@@ -14,6 +14,7 @@ RUN apt-get update --yes && \
 
 RUN pip install --no-cache-dir --upgrade pip
 
+COPY instructions.txt /instructions.txt
 COPY start.sh /start.sh
 COPY install.sh /install.sh
 COPY handlers /handlers
