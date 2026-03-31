@@ -5,6 +5,8 @@ download_model_with_comfy_cli() {
     local url="$1"
     local full_path="$2"
     local relative_path="${full_path#"$COMFYUI_DIR"/}"
+    local relative_dir
+    relative_dir=$(dirname "$relative_path")
     local start_ts
     local rc=0
     start_ts=$(date +%s)
@@ -25,7 +27,24 @@ download_model_with_comfy_cli() {
         fi
     fi
 
-    comfy --workspace="$COMFYUI_DIR" model download --url "$url" --relative-path "$relative_path" || rc=$?
+    local model_help
+    model_help="$(comfy model download --help 2>/dev/null || true)"
+    local -a comfy_model_download_cmd=(comfy)
+    while IFS= read -r arg; do
+        [ -n "$arg" ] && comfy_model_download_cmd+=("$arg")
+    done < <(comfy_global_noninteractive_args)
+    comfy_model_download_cmd+=(--workspace="$COMFYUI_DIR" model download --url "$url")
+
+    if printf '%s' "$model_help" | grep -q -- '--filename'; then
+        if printf '%s' "$model_help" | grep -q -- '--relative-path'; then
+            comfy_model_download_cmd+=(--relative-path "$relative_dir")
+        fi
+        comfy_model_download_cmd+=(--filename "$destination_file")
+    elif printf '%s' "$model_help" | grep -q -- '--relative-path'; then
+        comfy_model_download_cmd+=(--relative-path "$relative_path")
+    fi
+
+    "${comfy_model_download_cmd[@]}" || rc=$?
 
     local size_bytes
     local end_ts
