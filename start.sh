@@ -9,6 +9,10 @@ for handler_file in "$SCRIPT_DIR"/handlers/start/*.sh; do
     # shellcheck source=/dev/null
     source "$handler_file"
 done
+for handler_file in "$SCRIPT_DIR"/handlers/install/*.sh; do
+    # shellcheck source=/dev/null
+    source "$handler_file"
+done
 
 # Set the network volume path
 NETWORK_VOLUME="/workspace"
@@ -26,7 +30,10 @@ serve_setup_instructions_page
 
 echo "Jupyter is running."
 if verify_install_sentinel; then
-    echo "Install marker found. Run 'bash /install.sh' to ensure everything is up to date and start ComfyUI."
+    echo "Install marker found. Starting ComfyUI..."
+    if ! start_comfyui_service; then
+        echo "⚠️ Failed to auto-start ComfyUI. Run 'bash /install.sh' from the Jupyter terminal."
+    fi
 else
     echo "⚠️ Run 'bash /install.sh' from the Jupyter terminal to install models/nodes and start ComfyUI."
 fi

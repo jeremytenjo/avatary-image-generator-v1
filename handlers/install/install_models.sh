@@ -12,11 +12,6 @@ download_model_with_comfy_cli() {
     local destination_file
     destination_file=$(basename "$full_path")
 
-    if ! ensure_comfy_cli_ready; then
-        echo "❌ comfy-cli is not available."
-        return 1
-    fi
-
     if [ -f "$full_path" ]; then
         local size_bytes
         size_bytes=$(stat -f%z "$full_path" 2>/dev/null || stat -c%s "$full_path" 2>/dev/null || echo 0)
@@ -68,6 +63,11 @@ install_models_with_comfy_cli() {
         "https://huggingface.co/avatary-ai/files/resolve/main/ema_vae_fp16.safetensors|$SEEDVR2_DIR/ema_vae_fp16.safetensors"
         "https://huggingface.co/avatary-ai/files/resolve/main/sam3.pt|$SAM3_DIR/sam3.pt"
     )
+
+    if ! ensure_comfy_cli_ready; then
+        echo "❌ comfy-cli is not available."
+        return 1
+    fi
 
     local total_models=${#model_specs[@]}
     local model_idx=0
