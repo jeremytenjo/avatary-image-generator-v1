@@ -13,8 +13,7 @@ done
 NETWORK_VOLUME="/workspace"
 export INSTALL_START_TS
 INSTALL_START_TS=$(date +%s)
-INSTALL_MANIFEST_URL="https://raw.githubusercontent.com/jeremytenjo/avatary-image-generator-v1/main/config/install-manifest.yaml"
-export INSTALL_MANIFEST_URL
+set_install_manifest_url_default
 
 set_network_volume_default
 

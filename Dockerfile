@@ -36,9 +36,10 @@ RUN echo "ComfyUI update token: ${COMFYUI_UPDATE_TOKEN}" && \
 
 COPY start.sh /start.sh
 COPY install.sh /install.sh
+COPY refresh-nodes-and-models.sh /refresh-nodes-and-models.sh
 COPY handlers /handlers
 
-RUN chmod +x /start.sh /install.sh
+RUN chmod +x /start.sh /install.sh /refresh-nodes-and-models.sh
 
 EXPOSE 8188 8888
 
