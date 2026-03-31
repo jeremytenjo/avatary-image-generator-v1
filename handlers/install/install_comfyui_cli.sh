@@ -23,15 +23,26 @@ install_comfy_cli_package() {
 }
 
 
-ensure_comfy_cli_ready() {
-    if command -v comfy > /dev/null 2>&1; then
-        return 0
-    fi
+comfy_global_noninteractive_args() {
+    local help_text
+    help_text="$(comfy --help 2>/dev/null || true)"
 
-    echo "Installing comfy-cli..."
-    if ! install_comfy_cli_package; then
-        echo "❌ Failed to install comfy-cli."
-        return 1
+    if printf '%s' "$help_text" | grep -q -- '--skip-prompt'; then
+        printf '%s\n' "--skip-prompt"
+    fi
+    if printf '%s' "$help_text" | grep -q -- '--no-enable-telemetry'; then
+        printf '%s\n' "--no-enable-telemetry"
+    fi
+}
+
+
+ensure_comfy_cli_ready() {
+    if ! command -v comfy > /dev/null 2>&1; then
+        echo "Installing comfy-cli..."
+        if ! install_comfy_cli_package; then
+            echo "❌ Failed to install comfy-cli."
+            return 1
+        fi
     fi
 
     if ! command -v comfy > /dev/null 2>&1; then
@@ -40,7 +51,33 @@ ensure_comfy_cli_ready() {
     fi
 
     # Keep automation non-interactive by disabling telemetry prompt.
-    comfy tracking disable > /dev/null 2>&1 || true
+    local -a comfy_disable_tracking_cmd=(comfy)
+    while IFS= read -r arg; do
+        [ -n "$arg" ] && comfy_disable_tracking_cmd+=("$arg")
+    done < <(comfy_global_noninteractive_args)
+    comfy_disable_tracking_cmd+=(tracking disable)
+    "${comfy_disable_tracking_cmd[@]}" > /dev/null 2>&1 || true
+
+    return 0
+}
+
+
+prepare_comfyui_install_target() {
+    if [ -d "$COMFYUI_DIR/.git" ]; then
+        return 0
+    fi
+
+    if [ ! -d "$COMFYUI_DIR" ]; then
+        return 0
+    fi
+
+    local backup_dir="$NETWORK_VOLUME/ComfyUI.invalid.$(date +%Y%m%d%H%M%S)"
+    echo "⚠️ Found non-git ComfyUI directory at $COMFYUI_DIR"
+    echo "Moving it to $backup_dir so comfy-cli can install cleanly."
+    if ! mv "$COMFYUI_DIR" "$backup_dir"; then
+        echo "❌ Failed to move invalid ComfyUI directory: $COMFYUI_DIR"
+        return 1
+    fi
 
     return 0
 }
@@ -51,8 +88,23 @@ install_comfyui_with_comfy_cli() {
         return 1
     fi
 
+    if ! prepare_comfyui_install_target; then
+        return 1
+    fi
+
+    local install_help
+    install_help="$(comfy install --help 2>/dev/null || true)"
+    local -a comfy_install_cmd=(comfy)
+    while IFS= read -r arg; do
+        [ -n "$arg" ] && comfy_install_cmd+=("$arg")
+    done < <(comfy_global_noninteractive_args)
+    comfy_install_cmd+=(--workspace="$COMFYUI_DIR" install)
+    if printf '%s' "$install_help" | grep -q -- '--nvidia'; then
+        comfy_install_cmd+=(--nvidia)
+    fi
+
     echo "Installing/updating ComfyUI workspace via comfy-cli..."
-    if ! comfy --workspace="$COMFYUI_DIR" install; then
+    if ! "${comfy_install_cmd[@]}"; then
         echo "❌ comfy-cli failed to install/update ComfyUI at $COMFYUI_DIR"
         return 1
     fi
