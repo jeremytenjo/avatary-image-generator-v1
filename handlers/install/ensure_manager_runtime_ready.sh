@@ -2,7 +2,7 @@
 
 
 ensure_manager_runtime_ready() {
-    local manager_reqs="$NETWORK_VOLUME/ComfyUI/manager_requirements.txt"
+    local manager_reqs="$COMFYUI_DIR/manager_requirements.txt"
 
     if [ ! -f "$manager_reqs" ]; then
         echo "❌ Missing manager requirements file: $manager_reqs"
