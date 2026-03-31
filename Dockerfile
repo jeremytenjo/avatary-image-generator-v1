@@ -26,8 +26,18 @@ RUN bash -lc 'set -euo pipefail; \
     if printf "%s" "$comfy_help" | grep -q -- "--no-enable-telemetry"; then extra_args+=("--no-enable-telemetry"); fi; \
     comfy "${extra_args[@]}" tracking disable >/dev/null 2>&1 || true; \
     install_cmd=(comfy "${extra_args[@]}" --workspace="$PRELOAD_DIR" install); \
-    if printf "%s" "$install_help" | grep -q -- "--nvidia"; then install_cmd+=("--nvidia"); fi; \
-    "${install_cmd[@]}"; \
+    install_cmd_fallback=(comfy "${extra_args[@]}" --workspace="$PRELOAD_DIR" install); \
+    use_nvidia=0; \
+    if printf "%s" "$install_help" | grep -q -- "--nvidia"; then install_cmd+=("--nvidia"); use_nvidia=1; fi; \
+    if ! "${install_cmd[@]}"; then \
+        if [ "$use_nvidia" -eq 1 ]; then \
+            echo "⚠️ comfy install with --nvidia failed during build. Retrying without --nvidia."; \
+            "${install_cmd_fallback[@]}"; \
+        else \
+            echo "❌ comfy install failed during build."; \
+            exit 1; \
+        fi; \
+    fi; \
     resolved_workspace="$(comfy "${extra_args[@]}" --workspace="$PRELOAD_DIR" which 2>/dev/null | tail -n 1 | tr -d "\r" || true)"; \
     if [ -n "$resolved_workspace" ] && [ -d "$resolved_workspace" ]; then \
         printf "%s\n" "$resolved_workspace" > "$PRELOAD_PATH_FILE"; \
