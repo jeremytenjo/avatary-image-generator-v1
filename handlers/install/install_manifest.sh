@@ -1,20 +1,42 @@
 # shellcheck shell=bash
 
-
-load_install_manifest() {
-    if [ -z "${INSTALL_MANIFEST_PATH:-}" ]; then
-        echo "❌ INSTALL_MANIFEST_PATH is not set."
-        return 1
-    fi
-
-    if [ ! -f "$INSTALL_MANIFEST_PATH" ]; then
-        echo "❌ Install manifest not found: $INSTALL_MANIFEST_PATH"
+fetch_install_manifest() {
+    if [ -z "${INSTALL_MANIFEST_URL:-}" ]; then
+        echo "❌ INSTALL_MANIFEST_URL is not set."
         return 1
     fi
 
     local manifest_tmp_dir="/tmp/avatary-install-manifest"
-    rm -rf "$manifest_tmp_dir"
     mkdir -p "$manifest_tmp_dir"
+    local downloaded_manifest="$manifest_tmp_dir/install-manifest.yaml"
+
+    echo "Fetching install manifest from: $INSTALL_MANIFEST_URL"
+    if ! curl --fail --show-error --silent --location \
+        --retry 3 --retry-delay 2 --connect-timeout 10 --max-time 60 \
+        "$INSTALL_MANIFEST_URL" \
+        --output "$downloaded_manifest"; then
+        echo "❌ Failed to download install manifest from GitHub raw URL."
+        return 1
+    fi
+
+    if [ ! -s "$downloaded_manifest" ]; then
+        echo "❌ Downloaded install manifest is empty: $downloaded_manifest"
+        return 1
+    fi
+
+    INSTALL_MANIFEST_PATH="$downloaded_manifest"
+    export INSTALL_MANIFEST_PATH
+    return 0
+}
+
+
+load_install_manifest() {
+    if ! fetch_install_manifest; then
+        return 1
+    fi
+
+    local manifest_tmp_dir="/tmp/avatary-install-manifest"
+    rm -f "$manifest_tmp_dir/custom_nodes.tsv" "$manifest_tmp_dir/models.tsv"
 
     local exports_output
     if ! exports_output="$(
