@@ -20,7 +20,7 @@ if ! ensure_comfyui_workspace; then
     exit 1
 fi
 
-echo "Installing ComfyUI with comfy-cli..."
+echo "Ensuring ComfyUI core workspace is installed..."
 if ! install_comfyui_with_comfy_cli; then
     exit 1
 fi

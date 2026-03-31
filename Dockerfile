@@ -15,37 +15,8 @@ RUN apt-get update --yes && \
 RUN pip install --no-cache-dir --upgrade pip
 RUN python3 -m pip install --no-cache-dir comfy-cli
 
-RUN bash -lc 'set -euo pipefail; \
-    PRELOAD_DIR="/opt/comfyui-preload"; \
-    PRELOAD_PATH_FILE="/opt/comfyui-preload.path"; \
-    mkdir -p "$PRELOAD_DIR"; \
-    comfy_help="$(comfy --help 2>/dev/null || true)"; \
-    install_help="$(comfy install --help 2>/dev/null || true)"; \
-    extra_args=(); \
-    if printf "%s" "$comfy_help" | grep -q -- "--skip-prompt"; then extra_args+=("--skip-prompt"); fi; \
-    if printf "%s" "$comfy_help" | grep -q -- "--no-enable-telemetry"; then extra_args+=("--no-enable-telemetry"); fi; \
-    comfy "${extra_args[@]}" tracking disable >/dev/null 2>&1 || true; \
-    install_cmd=(comfy "${extra_args[@]}" --workspace="$PRELOAD_DIR" install); \
-    install_cmd_fallback=(comfy "${extra_args[@]}" --workspace="$PRELOAD_DIR" install); \
-    use_nvidia=0; \
-    if printf "%s" "$install_help" | grep -q -- "--nvidia"; then install_cmd+=("--nvidia"); use_nvidia=1; fi; \
-    if ! "${install_cmd[@]}"; then \
-        if [ "$use_nvidia" -eq 1 ]; then \
-            echo "⚠️ comfy install with --nvidia failed during build. Retrying without --nvidia."; \
-            "${install_cmd_fallback[@]}"; \
-        else \
-            echo "❌ comfy install failed during build."; \
-            exit 1; \
-        fi; \
-    fi; \
-    resolved_workspace="$(comfy "${extra_args[@]}" --workspace="$PRELOAD_DIR" which 2>/dev/null | tail -n 1 | tr -d "\r" || true)"; \
-    if [ -n "$resolved_workspace" ] && [ -d "$resolved_workspace" ]; then \
-        printf "%s\n" "$resolved_workspace" > "$PRELOAD_PATH_FILE"; \
-    elif [ -d "$PRELOAD_DIR/ComfyUI" ]; then \
-        printf "%s\n" "$PRELOAD_DIR/ComfyUI" > "$PRELOAD_PATH_FILE"; \
-    else \
-        printf "%s\n" "$PRELOAD_DIR" > "$PRELOAD_PATH_FILE"; \
-    fi'
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git /ComfyUI && \
+    python3 -m pip install --no-cache-dir -r /ComfyUI/requirements.txt
 
 COPY start.sh /start.sh
 COPY install.sh /install.sh
