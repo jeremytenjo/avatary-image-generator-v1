@@ -20,6 +20,7 @@ NETWORK_VOLUME="/workspace"
 prepare_network_volume_and_start_jupyter
 
 set_network_volume_default
+write_runtime_instructions
 
 if ! ensure_comfyui_workspace; then
     exit 1
