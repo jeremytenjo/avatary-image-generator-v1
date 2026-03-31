@@ -11,9 +11,8 @@ enable_tcmalloc_preload() {
 
 
 source_handler_glob() {
-    local glob_pattern="$1"
     local handler_file
-    for handler_file in $glob_pattern; do
+    for handler_file in "$@"; do
         if [ -f "$handler_file" ]; then
             # shellcheck source=/dev/null
             source "$handler_file"
