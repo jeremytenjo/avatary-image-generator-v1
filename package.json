@@ -1,20 +1,5 @@
 {
   "name": "avatary-image-generator-v1",
   "private": true,
-  "version": "1.0.0",
-  "dependencies": {
-    "@clack/prompts": "0.10.1"
-  },
-  "devDependencies": {
-    "@types/node": "24.12.0",
-    "tsx": "4.21.0",
-    "typescript": "5.9.3"
-  },
-  "scripts": {
-    "ssh:runpod": "tsx scripts/setup-runpod-ssh.ts",
-    "publish:dockerhub": "tsx scripts/publish-dockerhub.ts --username tenjojeremy",
-    "publish:patch": "tsx scripts/publish-dockerhub.ts --username tenjojeremy --bump patch --latest",
-    "publish:minor": "tsx scripts/publish-dockerhub.ts --username tenjojeremy --bump minor --latest",
-    "publish:major": "tsx scripts/publish-dockerhub.ts --username tenjojeremy --bump major --latest"
-  }
+  "version": "1.0.0"
 }

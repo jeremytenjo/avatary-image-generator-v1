@@ -12,19 +12,13 @@ RUN apt-get update --yes && \
     libgoogle-perftools4 && \
     rm -rf /var/lib/apt/lists/*
 
-COPY ComfyUI/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip
 
-RUN pip install --no-cache-dir --upgrade pip && \
-    cp /tmp/requirements.txt /tmp/requirements.image.txt && \
-    sed -i -E '/^(torch|torchaudio|torchvision|triton)(==.*)?$/d' /tmp/requirements.image.txt && \
-    sed -i -E '/^nvidia-.*-cu12(==.*)?$/d' /tmp/requirements.image.txt && \
-    pip install --no-cache-dir --no-build-isolation -r /tmp/requirements.image.txt
-
-COPY ComfyUI /ComfyUI
 COPY start.sh /start.sh
+COPY install.sh /install.sh
 COPY handlers /handlers
 
-RUN chmod +x /start.sh
+RUN chmod +x /start.sh /install.sh
 
 EXPOSE 8188 8888
 
