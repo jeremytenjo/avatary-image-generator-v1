@@ -2,7 +2,7 @@
 
 
 default_install_manifest_url() {
-    printf '%s\n' "https://raw.githubusercontent.com/jeremytenjo/avatary-image-generator-v1/main/config/install-manifest.yaml"
+    printf '%s\n' "https://raw.githubusercontent.com/jeremytenjo/avatary-image-generator-v1/main/dependencies.yaml"
 }
 
 install_manifest_tmp_dir() {
@@ -10,7 +10,7 @@ install_manifest_tmp_dir() {
 }
 
 install_manifest_download_path() {
-    printf '%s/install-manifest.yaml\n' "$(install_manifest_tmp_dir)"
+    printf '%s/dependencies.yaml\n' "$(install_manifest_tmp_dir)"
 }
 
 
@@ -22,7 +22,7 @@ set_install_manifest_url_default() {
 }
 
 
-fetch_install_manifest() {
+fetch_dependencies() {
     set_install_manifest_url_default
 
     if [ -z "${INSTALL_MANIFEST_URL:-}" ]; then
