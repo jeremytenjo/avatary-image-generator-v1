@@ -20,7 +20,7 @@ RUN python3 -m pip install --no-cache-dir comfy-cli
 RUN echo "ComfyUI update token: ${COMFYUI_UPDATE_TOKEN}" && \
     export COMFYUI_INSTALL_VERSION="${COMFYUI_VERSION}" && \
     if [ -z "${COMFYUI_INSTALL_VERSION}" ]; then \
-        comfy --skip-prompt --workspace=/ install --nvidia --skip-torch-or-directml --version nightly; \
+        comfy --skip-prompt --workspace=/ install --nvidia --skip-torch-or-directml --version latest; \
     elif printf '%s' "${COMFYUI_INSTALL_VERSION}" | grep -Eq '^v?[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$'; then \
         comfy --skip-prompt --workspace=/ install --nvidia --skip-torch-or-directml --version "${COMFYUI_INSTALL_VERSION#v}"; \
     else \

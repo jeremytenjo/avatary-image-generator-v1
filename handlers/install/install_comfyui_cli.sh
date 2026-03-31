@@ -131,7 +131,7 @@ install_comfyui_core_with_comfy_cli() {
     comfy_install_cmd+=(--workspace="$NETWORK_VOLUME" install --nvidia --skip-torch-or-directml)
 
     if [ -z "$install_version" ]; then
-        comfy_install_cmd+=(--version nightly)
+        comfy_install_cmd+=(--version latest)
     elif printf '%s' "$install_version" | grep -Eq '^v?[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$'; then
         comfy_install_cmd+=(--version "${install_version#v}")
     else
@@ -139,7 +139,7 @@ install_comfyui_core_with_comfy_cli() {
         return 1
     fi
 
-    echo "Installing ComfyUI core via comfy-cli (version: ${install_version:-nightly})..."
+    echo "Installing ComfyUI core via comfy-cli (version: ${install_version:-latest})..."
     if ! "${comfy_install_cmd[@]}"; then
         echo "❌ Failed to install ComfyUI via comfy-cli."
         return 1
