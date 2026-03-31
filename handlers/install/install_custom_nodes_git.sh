@@ -1,5 +1,30 @@
 # shellcheck shell=bash
 
+run_custom_node_post_install() {
+    local repo_dir="$1"
+    local node_path="$CUSTOM_NODES_DIR/$repo_dir"
+    local requirements_file="$node_path/requirements.txt"
+    local install_script="$node_path/install.py"
+
+    if [ -f "$requirements_file" ]; then
+        echo "📦 Installing Python dependencies for $repo_dir"
+        if ! python3 -m pip install --no-cache-dir -r "$requirements_file"; then
+            echo "⚠️ Failed to install requirements for $repo_dir"
+            return 1
+        fi
+    fi
+
+    if [ -f "$install_script" ]; then
+        echo "⚙️ Running install.py for $repo_dir"
+        if ! (cd "$node_path" && python3 install.py); then
+            echo "⚠️ install.py failed for $repo_dir"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
 
 install_custom_node_from_git() {
     local repo_dir="$1"
@@ -10,6 +35,9 @@ install_custom_node_from_git() {
         echo "🔄 Updating existing git node: $repo_dir"
         if ! git -C "$node_path" pull --ff-only; then
             echo "⚠️ Failed to update custom node: $repo_dir"
+            return 1
+        fi
+        if ! run_custom_node_post_install "$repo_dir"; then
             return 1
         fi
         return 0
@@ -25,6 +53,10 @@ install_custom_node_from_git() {
 
     if ! git clone "$repo_url" "$node_path"; then
         echo "⚠️ Failed to clone custom node repo: $repo_url"
+        return 1
+    fi
+
+    if ! run_custom_node_post_install "$repo_dir"; then
         return 1
     fi
 
