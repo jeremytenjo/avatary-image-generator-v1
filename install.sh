@@ -39,8 +39,8 @@ if ! install_custom_nodes_with_comfy_cli; then
     exit 1
 fi
 
-echo "Installing required models with wget..."
-if ! install_models_with_wget; then
+echo "Installing required models with comfy-cli..."
+if ! install_models_with_comfy_cli; then
     echo "Model installation failed."
     exit 1
 fi

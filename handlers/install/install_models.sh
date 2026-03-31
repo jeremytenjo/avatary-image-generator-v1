@@ -1,20 +1,21 @@
 # shellcheck shell=bash
 
 
-download_model_with_wget() {
+download_model_with_comfy_cli() {
     local url="$1"
     local full_path="$2"
-    local hf_token="${HUGGINGFACE_TOKEN:-}"
+    local relative_path="${full_path#"$COMFYUI_DIR"/}"
     local start_ts
     local rc=0
     start_ts=$(date +%s)
 
-    local destination_dir
     local destination_file
-    destination_dir=$(dirname "$full_path")
     destination_file=$(basename "$full_path")
 
-    mkdir -p "$destination_dir"
+    if ! ensure_comfy_cli_ready; then
+        echo "❌ comfy-cli is not available."
+        return 1
+    fi
 
     if [ -f "$full_path" ]; then
         local size_bytes
@@ -29,21 +30,12 @@ download_model_with_wget() {
         fi
     fi
 
-    local -a wget_args=(
-        --continue
-        --tries=5
-        --waitretry=2
-        --timeout=30
-        --read-timeout=30
-        --output-document="$full_path"
-    )
-    if [ -n "$hf_token" ]; then
-        wget_args+=(--header="Authorization: Bearer $hf_token")
+    if [ -z "${HUGGINGFACE_TOKEN:-}" ]; then
+        echo "⚠️  HUGGINGFACE_TOKEN not set; downloading without HF auth token."
+        comfy --workspace="$COMFYUI_DIR" model download --url "$url" --relative-path "$relative_path" || rc=$?
     else
-        echo "⚠️  HUGGINGFACE_TOKEN not set; downloading without Authorization header."
+        HF_API_TOKEN="$HUGGINGFACE_TOKEN" comfy --workspace="$COMFYUI_DIR" model download --url "$url" --relative-path "$relative_path" || rc=$?
     fi
-
-    wget "${wget_args[@]}" "$url" || rc=$?
 
     local size_bytes
     local end_ts
@@ -61,7 +53,7 @@ download_model_with_wget() {
 }
 
 
-install_models_with_wget() {
+install_models_with_comfy_cli() {
     local -a model_specs=(
         "https://huggingface.co/avatary-ai/files/resolve/main/ae.safetensors|$VAE_DIR/ae.safetensors"
         "https://huggingface.co/avatary-ai/files/resolve/main/qwen_3_4b.safetensors|$TEXT_ENCODERS_DIR/qwen_3_4b.safetensors"
@@ -88,7 +80,7 @@ install_models_with_wget() {
         IFS='|' read -r model_url model_path <<< "$model_spec"
         model_idx=$((model_idx + 1))
         echo "⬇️ [$model_idx/$total_models] Queueing $(basename "$model_path")"
-        download_model_with_wget "$model_url" "$model_path" &
+        download_model_with_comfy_cli "$model_url" "$model_path" &
         model_download_pids+=($!)
         model_download_labels+=("$model_path")
     done
