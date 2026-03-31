@@ -79,17 +79,35 @@ install_models_with_wget() {
 
     local total_models=${#model_specs[@]}
     local model_idx=0
+    local -a model_download_pids=()
+    local -a model_download_labels=()
     local model_spec
     for model_spec in "${model_specs[@]}"; do
         local model_url
         local model_path
         IFS='|' read -r model_url model_path <<< "$model_spec"
         model_idx=$((model_idx + 1))
-        echo "⬇️ [$model_idx/$total_models] Downloading $(basename "$model_path")"
-        if ! download_model_with_wget "$model_url" "$model_path"; then
-            return 1
+        echo "⬇️ [$model_idx/$total_models] Queueing $(basename "$model_path")"
+        download_model_with_wget "$model_url" "$model_path" &
+        model_download_pids+=($!)
+        model_download_labels+=("$model_path")
+    done
+
+    local failed_downloads=0
+    local i
+    for i in "${!model_download_pids[@]}"; do
+        local pid="${model_download_pids[$i]}"
+        local label="${model_download_labels[$i]}"
+        if ! wait "$pid"; then
+            failed_downloads=$((failed_downloads + 1))
+            echo "❌ Model download failed: $label"
         fi
     done
+
+    if [ "$failed_downloads" -gt 0 ]; then
+        echo "❌ $failed_downloads model download task(s) failed."
+        return 1
+    fi
 
     if [ -d "$LORAS_DIR" ]; then
         local file
