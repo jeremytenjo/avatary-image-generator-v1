@@ -20,7 +20,7 @@ custom_nodes:
   - repo_dir: 'cg-use-everywhere'
     repo: 'https://github.com/chrisgoringe/cg-use-everywhere'
   - repo_dir: 'ComfyUI-NAG'
-    repo: 'https://github.com/jeremytenjo/ComfyUI-NAG'
+    repo: 'https://github.com/dci05049/Comfyui-NAG-Aiorbust'
   - repo_dir: 'ComfyUI-GlifNodes'
     repo: 'https://github.com/glifxyz/ComfyUI-GlifNodes'
   - repo_dir: 'ComfyUI-Impact-Pack'
