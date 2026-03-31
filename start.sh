@@ -26,7 +26,7 @@ echo "Jupyter is running."
 if verify_install_sentinel; then
     echo "Install marker found. Starting ComfyUI..."
     if ! start_comfyui_service; then
-        echo "⚠️ Failed to auto-start ComfyUI. Run 'bash /install.sh' from the Jupyter terminal."
+        echo "⚠️ Failed to auto-start ComfyUI. Run 'bash install.sh' from the Jupyter terminal."
     fi
 fi
 
