@@ -45,16 +45,6 @@ if ! install_models_with_comfy_cli; then
     exit 1
 fi
 
-if ! ensure_required_text_encoders; then
-    echo "Text encoder preflight failed."
-    exit 1
-fi
-
-if ! ensure_required_vae_models; then
-    echo "VAE preflight failed."
-    exit 1
-fi
-
 write_install_sentinel
 
 if ! start_comfyui_service; then
