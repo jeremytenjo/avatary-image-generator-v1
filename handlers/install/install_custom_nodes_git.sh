@@ -73,17 +73,20 @@ install_custom_nodes() {
     fi
 
     local total_custom_nodes=${#custom_node_specs[@]}
-    local custom_node_idx=0
+    local max_parallel=4
+    local -a custom_node_pids=()
+    local -a custom_node_labels=()
     local custom_node_spec
-    for custom_node_spec in "${custom_node_specs[@]}"; do
+    local custom_node_idx=0
+
+    install_single_custom_node() {
+        local spec="$1"
         local cnr_id
         local repo_dir
         local repo_url
         local pinned_version
         local comfy_output
-        IFS='|' read -r cnr_id repo_dir repo_url pinned_version <<< "$custom_node_spec"
-        custom_node_idx=$((custom_node_idx + 1))
-        echo "⬇️ [$custom_node_idx/$total_custom_nodes] Installing $cnr_id via comfy-cli (target $repo_dir@$pinned_version)"
+        IFS='|' read -r cnr_id repo_dir repo_url pinned_version <<< "$spec"
 
         comfy_output="$(comfy --workspace="$COMFYUI_DIR" node install "$cnr_id" 2>&1)"
         if [ $? -ne 0 ]; then
@@ -93,17 +96,53 @@ install_custom_nodes() {
                     echo "❌ Failed to install custom node via git fallback: $repo_dir"
                     return 1
                 fi
-                continue
+            else
+                echo "$comfy_output"
+                echo "❌ Failed to install custom node via comfy-cli: $cnr_id"
+                return 1
             fi
-
-            echo "$comfy_output"
-            echo "❌ Failed to install custom node via comfy-cli: $cnr_id"
-            return 1
         fi
 
         local node_path="$CUSTOM_NODES_DIR/$repo_dir"
         if [ -d "$node_path" ]; then
             echo "$pinned_version" > "$node_path/.cnr-version"
+        fi
+
+        return 0
+    }
+
+    for custom_node_spec in "${custom_node_specs[@]}"; do
+        local cnr_id
+        local repo_dir
+        local repo_url
+        local pinned_version
+        IFS='|' read -r cnr_id repo_dir repo_url pinned_version <<< "$custom_node_spec"
+        custom_node_idx=$((custom_node_idx + 1))
+        echo "⬇️ [$custom_node_idx/$total_custom_nodes] Queueing $cnr_id (target $repo_dir@$pinned_version)"
+
+        install_single_custom_node "$custom_node_spec" &
+        custom_node_pids+=($!)
+        custom_node_labels+=("$cnr_id")
+
+        if [ "${#custom_node_pids[@]}" -ge "$max_parallel" ]; then
+            local wait_pid="${custom_node_pids[0]}"
+            local wait_label="${custom_node_labels[0]}"
+            if ! wait "$wait_pid"; then
+                echo "❌ Custom node installation failed: $wait_label"
+                return 1
+            fi
+            custom_node_pids=("${custom_node_pids[@]:1}")
+            custom_node_labels=("${custom_node_labels[@]:1}")
+        fi
+    done
+
+    local i
+    for i in "${!custom_node_pids[@]}"; do
+        local pid="${custom_node_pids[$i]}"
+        local label="${custom_node_labels[$i]}"
+        if ! wait "$pid"; then
+            echo "❌ Custom node installation failed: $label"
+            return 1
         fi
     done
 
