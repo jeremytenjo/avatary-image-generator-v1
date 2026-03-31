@@ -6,7 +6,8 @@ load_install_manifest() {
         return 1
     fi
 
-    local manifest_tmp_dir="/tmp/avatary-install-manifest"
+    local manifest_tmp_dir
+    manifest_tmp_dir="$(install_manifest_tmp_dir)"
     rm -f "$manifest_tmp_dir/custom_nodes.tsv" "$manifest_tmp_dir/models.tsv"
 
     local exports_output

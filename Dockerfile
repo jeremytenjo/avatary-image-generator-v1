@@ -21,8 +21,6 @@ RUN python3 -m pip install --no-cache-dir comfy-cli
 RUN set -eux; \
     echo "ComfyUI update token: ${COMFYUI_UPDATE_TOKEN}"; \
     echo "ComfyUI upgrade mode: ${COMFYUI_UPGRADE}"; \
-    noninteractive_args="--skip-prompt"; \
-    comfy --skip-prompt tracking disable >/dev/null 2>&1 || true; \
     COMFYUI_INSTALL_VERSION="${COMFYUI_VERSION}"; \
     COMFYUI_INSTALL_VERSION="$(printf '%s' "${COMFYUI_INSTALL_VERSION}" | tr -d '[:space:]')"; \
     if [ -z "${COMFYUI_INSTALL_VERSION}" ]; then \
@@ -40,18 +38,18 @@ RUN set -eux; \
         echo "ComfyUI already present in base image. Skipping install because COMFYUI_UPGRADE=false."; \
     else \
         rm -rf /ComfyUI; \
-        set +e; \
-        install_log=$(comfy ${noninteractive_args} --workspace=/ install --nvidia --skip-torch-or-directml --version "${COMFYUI_INSTALL_VERSION#v}" 2>&1); \
-        install_rc=$?; \
-        set -e; \
-        echo "${install_log}"; \
-        if [ ${install_rc} -ne 0 ]; then \
-            echo ""; \
-            echo "========================================"; \
-            echo "❌ comfy install FAILED (exit code ${install_rc})"; \
-            echo "========================================"; \
-            exit ${install_rc}; \
+        git clone https://github.com/comfyanonymous/ComfyUI.git /ComfyUI; \
+        cd /ComfyUI; \
+        git fetch --tags --force; \
+        if git rev-parse -q --verify "v${COMFYUI_INSTALL_VERSION#v}^{commit}" >/dev/null 2>&1; then \
+            git checkout -q "v${COMFYUI_INSTALL_VERSION#v}"; \
+        elif git rev-parse -q --verify "${COMFYUI_INSTALL_VERSION#v}^{commit}" >/dev/null 2>&1; then \
+            git checkout -q "${COMFYUI_INSTALL_VERSION#v}"; \
+        else \
+            echo "❌ Requested ComfyUI version ref not found: ${COMFYUI_INSTALL_VERSION}"; \
+            exit 1; \
         fi; \
+        python3 -m pip install --no-cache-dir -r /ComfyUI/requirements.txt; \
     fi
 
 COPY start.sh /start.sh

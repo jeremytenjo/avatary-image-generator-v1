@@ -5,6 +5,14 @@ default_install_manifest_url() {
     printf '%s\n' "https://raw.githubusercontent.com/jeremytenjo/avatary-image-generator-v1/main/config/install-manifest.yaml"
 }
 
+install_manifest_tmp_dir() {
+    printf '%s\n' "/tmp/avatary-install-manifest"
+}
+
+install_manifest_download_path() {
+    printf '%s/install-manifest.yaml\n' "$(install_manifest_tmp_dir)"
+}
+
 
 set_install_manifest_url_default() {
     if [ -z "${INSTALL_MANIFEST_URL:-}" ]; then
@@ -22,9 +30,11 @@ fetch_install_manifest() {
         return 1
     fi
 
-    local manifest_tmp_dir="/tmp/avatary-install-manifest"
+    local manifest_tmp_dir
+    manifest_tmp_dir="$(install_manifest_tmp_dir)"
     mkdir -p "$manifest_tmp_dir"
-    local downloaded_manifest="$manifest_tmp_dir/install-manifest.yaml"
+    local downloaded_manifest
+    downloaded_manifest="$(install_manifest_download_path)"
 
     echo "Fetching install manifest from: $INSTALL_MANIFEST_URL"
     if ! curl --fail --show-error --silent --location \
