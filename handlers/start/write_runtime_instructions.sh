@@ -5,7 +5,7 @@ write_runtime_instructions() {
 
     mkdir -p "$NETWORK_VOLUME"
     cat > "$instructions_path" <<'EOF'
-Welcome to the Avatary Image Generator v1
+Image Generator v1
 
 Requirements:
 
