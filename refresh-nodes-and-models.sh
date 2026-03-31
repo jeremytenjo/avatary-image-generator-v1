@@ -27,4 +27,10 @@ if ! install_models_with_comfy_cli; then
     exit 1
 fi
 
-echo "✅ Node and model refresh complete."
+echo "Node and model refresh complete. Restarting ComfyUI..."
+if ! bash /restart-comfyui.sh; then
+    echo "❌ Node/model refresh succeeded, but ComfyUI restart failed."
+    exit 1
+fi
+
+echo "✅ Node and model refresh complete. ComfyUI restarted."
