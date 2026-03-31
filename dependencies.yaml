@@ -17,6 +17,10 @@ custom_nodes:
     repo: 'https://github.com/cubiq/ComfyUI_essentials.git'
   - repo_dir: 'ComfyUI-JoyCaption'
     repo: 'https://github.com/1038lab/ComfyUI-JoyCaption'
+  - repo_dir: 'cg-use-everywhere'
+    repo: 'https://github.com/chrisgoringe/cg-use-everywhere'
+  - repo_dir: 'ComfyUI-NAG'
+    repo: 'https://github.com/jeremytenjo/ComfyUI-NAG'
 
 models:
   - url: 'https://huggingface.co/avatary-ai/files/resolve/main/ae.safetensors'
