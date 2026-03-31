@@ -90,7 +90,7 @@ install_models_with_comfy_cli() {
         export HF_API_TOKEN="$HUGGINGFACE_TOKEN"
     fi
     if [ -z "${HF_API_TOKEN:-}" ]; then
-        echo "⚠️  HF_API_TOKEN not set; downloading without HF auth token."
+        echo "HF_API_TOKEN not set; downloading without HF auth token."
     fi
 
     local total_models=${#model_specs[@]}
