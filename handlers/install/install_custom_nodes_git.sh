@@ -9,22 +9,22 @@ install_custom_node_from_git() {
     if [ -d "$node_path/.git" ]; then
         echo "🔄 Updating existing git node: $repo_dir"
         if ! git -C "$node_path" fetch --tags --prune origin; then
-            echo "❌ Failed to fetch updates for custom node: $repo_dir"
+            echo "⚠️ Failed to fetch updates for custom node: $repo_dir"
             return 1
         fi
     elif [ -d "$node_path" ]; then
         echo "⚠️ Existing non-git directory found for $repo_dir; replacing it."
         if ! rm -rf "$node_path"; then
-            echo "❌ Failed to remove existing custom node directory: $node_path"
+            echo "⚠️ Failed to remove existing custom node directory: $node_path"
             return 1
         fi
         if ! git clone "$repo_url" "$node_path"; then
-            echo "❌ Failed to clone custom node repo: $repo_url"
+            echo "⚠️ Failed to clone custom node repo: $repo_url"
             return 1
         fi
     else
         if ! git clone "$repo_url" "$node_path"; then
-            echo "❌ Failed to clone custom node repo: $repo_url"
+            echo "⚠️ Failed to clone custom node repo: $repo_url"
             return 1
         fi
     fi
@@ -32,16 +32,16 @@ install_custom_node_from_git() {
     if [ -n "$pinned_version" ]; then
         if git -C "$node_path" rev-parse -q --verify "$pinned_version^{commit}" >/dev/null 2>&1; then
             if ! git -C "$node_path" checkout -q "$pinned_version"; then
-                echo "❌ Failed to checkout pinned version $pinned_version for $repo_dir"
+                echo "⚠️ Failed to checkout pinned version $pinned_version for $repo_dir"
                 return 1
             fi
         elif git -C "$node_path" rev-parse -q --verify "v$pinned_version^{commit}" >/dev/null 2>&1; then
             if ! git -C "$node_path" checkout -q "v$pinned_version"; then
-                echo "❌ Failed to checkout pinned version v$pinned_version for $repo_dir"
+                echo "⚠️ Failed to checkout pinned version v$pinned_version for $repo_dir"
                 return 1
             fi
         else
-            echo "❌ Pinned version not found in git repo for $repo_dir: $pinned_version"
+            echo "⚠️ Pinned version not found in git repo for $repo_dir: $pinned_version"
             return 1
         fi
         echo "$pinned_version" > "$node_path/.cnr-version"
@@ -90,15 +90,12 @@ install_custom_nodes() {
 
         comfy_output="$(comfy --workspace="$COMFYUI_DIR" node install "$cnr_id" 2>&1)"
         if [ $? -ne 0 ]; then
-            if printf '%s' "$comfy_output" | grep -qiE "not found|@unknown|custom-node-list\.json"; then
-                echo "⚠️ $cnr_id is not resolvable in comfy registry; falling back to git: $repo_url"
-                if ! install_custom_node_from_git "$repo_dir" "$repo_url" "$pinned_version"; then
-                    echo "❌ Failed to install custom node via git fallback: $repo_dir"
-                    return 1
-                fi
-            else
+            if [ -n "$comfy_output" ]; then
                 echo "$comfy_output"
-                echo "❌ Failed to install custom node via comfy-cli: $cnr_id"
+            fi
+            echo "⚠️ comfy-cli install failed for $cnr_id; trying git fallback: $repo_url"
+            if ! install_custom_node_from_git "$repo_dir" "$repo_url" "$pinned_version"; then
+                echo "⚠️ Git fallback failed for $repo_dir"
                 return 1
             fi
         fi
