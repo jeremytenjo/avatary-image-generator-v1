@@ -22,7 +22,7 @@ Create one YAML file per project profile you want to maintain.
 
 ## Settings Configuration
 
-Project manifest sync requires `/workspace/settings.yaml` with `github.owner_url`:
+Project manifest sync requires `/settings.yaml` with `github.owner_url`:
 
 ```yaml
 github:

@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 
 projects_settings_path() {
-    echo "/workspace/settings.yaml"
+    echo "/settings.yaml"
 }
 
 
