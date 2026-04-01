@@ -4,30 +4,46 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR"/handlers/shared/entrypoint_utils.sh
 
 enable_tcmalloc_preload
-source_start_handlers "$SCRIPT_DIR"
 source_install_handlers "$SCRIPT_DIR"
 
-# Set the network volume path
 NETWORK_VOLUME="/workspace"
-
-prepare_network_volume_and_start_jupyter
-
-set_network_volume_default
-write_runtime_instructions
-
-if ! ensure_comfyui_workspace; then
+export INSTALL_START_TS
+INSTALL_START_TS=$(date +%s)
+if ! prepare_manifest_install_context; then
     exit 1
 fi
 
-enable_nodes_2_default
-serve_setup_instructions_page
-
-echo "Jupyter is running."
-if verify_install_sentinel; then
-    echo "Install marker found. Starting ComfyUI..."
-    if ! start_comfyui_service; then
-        echo "⚠️ Failed to auto-start ComfyUI. Run 'bash install.sh' from the Jupyter terminal."
-    fi
+echo "Ensuring ComfyUI core workspace is installed..."
+if ! install_comfyui_with_comfy_cli; then
+    exit 1
 fi
 
-sleep infinity
+if ! cleanup_comfyui_invalid_backup; then
+    exit 1
+fi
+
+clear_install_sentinel
+
+if ! enable_comfyui_manager_modern_ui; then
+    exit 1
+fi
+
+echo "Ensuring required custom nodes are installed via comfy-git..."
+if ! install_custom_nodes; then
+    echo "Custom node installation failed."
+    exit 1
+fi
+
+echo "Installing required models with comfy-cli..."
+if ! install_models_with_comfy_cli; then
+    echo "Model installation failed."
+    exit 1
+fi
+
+write_install_sentinel
+
+if ! start_comfyui_service; then
+    exit 1
+fi
+
+echo "✅ Installation complete and ComfyUI is ready on port 8188."

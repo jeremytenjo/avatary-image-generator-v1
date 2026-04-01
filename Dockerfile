@@ -62,4 +62,4 @@ RUN chmod +x /start.sh /install.sh /update-nodes-and-models.sh /restart-comfyui.
 
 EXPOSE 8188 8888
 
-CMD ["/start.sh"]
+CMD ["/install.sh"]
