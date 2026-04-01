@@ -6,10 +6,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR"/handlers/shared/entrypoint_utils.sh
 
 enable_tcmalloc_preload
+source_start_handlers "$SCRIPT_DIR"
 source_install_handlers "$SCRIPT_DIR"
 
 NETWORK_VOLUME="/workspace"
 export NETWORK_VOLUME
+
+if ! refresh_project_manifests; then
+    exit 1
+fi
 
 if ! set_install_manifest_from_saved_project; then
     exit 1
