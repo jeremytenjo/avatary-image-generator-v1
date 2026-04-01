@@ -90,6 +90,8 @@ with models_file.open("w", encoding="utf-8") as mf:
 
         mf.write(f"{target}\n")
 PY
+    then
+        parse_rc=0
     else
         parse_rc=$?
     fi
