@@ -2,7 +2,7 @@
 
 
 install_manifest_tmp_dir() {
-    printf '%s\n' "/tmp/avatary-install-manifest"
+    printf '%s\n' "/tmp/dynamic-comfyui-install-manifest"
 }
 
 fetch_dependencies() {

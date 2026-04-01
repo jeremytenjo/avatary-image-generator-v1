@@ -10,7 +10,7 @@ remove_dependencies_from_manifest() {
     fi
 
     local cleanup_tmp_dir
-    cleanup_tmp_dir="$(mktemp -d /tmp/avatary-project-cleanup.XXXXXX)"
+    cleanup_tmp_dir="$(mktemp -d /tmp/dynamic-comfyui-project-cleanup.XXXXXX)"
 
     local parse_rc=0
     if python3 - "$manifest_path" "$cleanup_tmp_dir" <<'PY'

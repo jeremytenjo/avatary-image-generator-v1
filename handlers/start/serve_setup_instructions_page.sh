@@ -2,9 +2,9 @@
 
 
 serve_setup_instructions_page() {
-    local setup_dir="/tmp/avatary-setup-page"
+    local setup_dir="/tmp/dynamic-comfyui-setup-page"
     local setup_html="$setup_dir/index.html"
-    local setup_pid_file="/tmp/avatary-setup-page.pid"
+    local setup_pid_file="/tmp/dynamic-comfyui-setup-page.pid"
     local comfy_health_url="http://127.0.0.1:8188/system_stats"
 
     # If ComfyUI is already reachable, don't start a placeholder page.
@@ -81,7 +81,7 @@ EOF
         return 0
     fi
 
-    nohup python3 -m http.server 8188 --bind 0.0.0.0 --directory "$setup_dir" >/tmp/avatary-setup-page.log 2>&1 &
+    nohup python3 -m http.server 8188 --bind 0.0.0.0 --directory "$setup_dir" >/tmp/dynamic-comfyui-setup-page.log 2>&1 &
     echo $! > "$setup_pid_file"
     echo "Serving setup instructions on port 8188 until ComfyUI starts."
 }
