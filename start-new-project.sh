@@ -10,6 +10,10 @@ source_install_handlers "$SCRIPT_DIR"
 NETWORK_VOLUME="/workspace"
 export NETWORK_VOLUME
 
+if ! refresh_project_manifests; then
+    echo "⚠️ Continuing with local project manifests."
+fi
+
 previous_project_key=""
 previous_manifest_path=""
 if try_load_saved_project_manifest; then

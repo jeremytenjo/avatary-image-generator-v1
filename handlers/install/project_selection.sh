@@ -7,22 +7,30 @@ project_selection_state_path() {
 
 
 list_project_manifest_paths() {
-    local projects_dir="$SCRIPT_DIR/projects"
-
-    if [ ! -d "$projects_dir" ]; then
-        echo "❌ Projects directory not found: $projects_dir"
-        return 1
-    fi
-
+    local runtime_projects_dir="${NETWORK_VOLUME:-/workspace}/projects"
+    local -a candidate_dirs=("$runtime_projects_dir" "$SCRIPT_DIR/projects")
+    local projects_dir=""
     local -a manifests=()
+    local candidate_dir
     local manifest_path
-    while IFS= read -r manifest_path; do
-        [ -n "$manifest_path" ] || continue
-        manifests+=("$manifest_path")
-    done < <(find "$projects_dir" -maxdepth 1 -type f -name '*.yaml' | LC_ALL=C sort)
 
-    if [ "${#manifests[@]}" -eq 0 ]; then
-        echo "❌ No project manifests found in $projects_dir"
+    for candidate_dir in "${candidate_dirs[@]}"; do
+        [ -d "$candidate_dir" ] || continue
+
+        manifests=()
+        while IFS= read -r manifest_path; do
+            [ -n "$manifest_path" ] || continue
+            manifests+=("$manifest_path")
+        done < <(find "$candidate_dir" -maxdepth 1 -type f \( -name '*.yaml' -o -name '*.yml' \) | LC_ALL=C sort)
+
+        if [ "${#manifests[@]}" -gt 0 ]; then
+            projects_dir="$candidate_dir"
+            break
+        fi
+    done
+
+    if [ -z "$projects_dir" ] || [ "${#manifests[@]}" -eq 0 ]; then
+        echo "❌ No project manifests found in $runtime_projects_dir or $SCRIPT_DIR/projects"
         return 1
     fi
 
@@ -33,7 +41,11 @@ list_project_manifest_paths() {
 
 manifest_project_key() {
     local manifest_path="$1"
-    basename "$manifest_path" .yaml
+    local name
+    name="$(basename "$manifest_path")"
+    name="${name%.yaml}"
+    name="${name%.yml}"
+    printf '%s\n' "$name"
 }
 
 
