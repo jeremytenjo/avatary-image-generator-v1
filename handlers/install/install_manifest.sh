@@ -13,7 +13,6 @@ load_install_manifest() {
     local exports_output
     if ! exports_output="$(
         python3 - "$INSTALL_MANIFEST_PATH" "$manifest_tmp_dir" <<'PY'
-import re
 import shlex
 import sys
 from pathlib import Path
@@ -39,13 +38,6 @@ except Exception as exc:
 
 if not isinstance(data, dict):
     fail("Manifest root must be a mapping.")
-
-version = data.get("comfyui_version")
-if not isinstance(version, str) or not version.strip():
-    fail("Manifest requires non-empty string field: comfyui_version")
-version = version.strip()
-if not re.match(r"^v?[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$", version):
-    fail("comfyui_version must be semver (example: 0.3.39 or v0.3.39)")
 
 custom_nodes = data.get("custom_nodes")
 if custom_nodes is None:
@@ -103,7 +95,6 @@ with models_file.open("w", encoding="utf-8") as mf:
 
         mf.write(f"{url.strip()}\t{target_value}\n")
 
-print(f"export COMFYUI_VERSION={shlex.quote(version)}")
 print(f"export INSTALL_MANIFEST_CUSTOM_NODES_FILE={shlex.quote(str(nodes_file))}")
 print(f"export INSTALL_MANIFEST_MODELS_FILE={shlex.quote(str(models_file))}")
 PY
@@ -119,6 +110,5 @@ PY
     fi
 
     echo "Loaded install manifest: $INSTALL_MANIFEST_PATH"
-    echo "ComfyUI version from manifest: $COMFYUI_VERSION"
     return 0
 }

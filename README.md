@@ -7,8 +7,6 @@ Define your models and nodes in templates for easy ComfyUI environment managemen
 Example (`projects/example.yaml`):
 
 ```yaml
-comfyui_version: '0.18.2'
-
 custom_nodes:
   - repo_dir: 'ComfyUI-Easy-Use'
     repo: 'https://github.com/yolain/ComfyUI-Easy-Use.git'
@@ -19,6 +17,8 @@ models:
 ```
 
 Create one YAML file per project profile you want to maintain.
+
+Runtime project YAML controls custom nodes and models only. ComfyUI core version updates are build-time only via the GitHub Action inputs `upgrade_comfyui` and optional `comfyui_version`.
 
 ## YAML URL Flow
 

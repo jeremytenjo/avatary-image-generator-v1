@@ -1,5 +1,3 @@
-comfyui_version: '0.18.2'
-
 custom_nodes:
   - repo_dir: 'ComfyUI-Manager'
     repo: 'https://github.com/ltdrdata/ComfyUI-Manager.git'

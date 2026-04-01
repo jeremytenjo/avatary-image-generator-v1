@@ -3,6 +3,9 @@
 cat <<'TXT'
 Dynamic ComfyUI Commands
 
+- ComfyUI core version
+  Managed at image build time via GitHub Action inputs (upgrade_comfyui/comfyui_version), not project YAML.
+
 - bash start.sh
   Enter a direct YAML URL and install/start ComfyUI.
 

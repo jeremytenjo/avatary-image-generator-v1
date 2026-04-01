@@ -117,55 +117,17 @@ cleanup_comfyui_invalid_backup() {
 }
 
 
-install_comfyui_core_with_comfy_cli() {
+verify_comfyui_core_workspace() {
     if is_comfyui_workspace_sane "$COMFYUI_DIR"; then
-        echo "ComfyUI core already present at $COMFYUI_DIR; skipping clone."
+        echo "ComfyUI core workspace verified at $COMFYUI_DIR."
         return 0
     fi
 
-    local install_version="${COMFYUI_VERSION:-}"
-    install_version="$(printf '%s' "$install_version" | tr -d '[:space:]')"
-    if [ -z "$install_version" ]; then
-        echo "❌ COMFYUI_VERSION is not set. Ensure install manifest is loaded before install."
-        return 1
-    fi
+    echo "❌ ComfyUI core workspace is missing or invalid at $COMFYUI_DIR."
+    echo "❌ Runtime will not install or switch ComfyUI core."
+    echo "❌ Rebuild the image with GitHub Action inputs (upgrade_comfyui/comfyui_version) to change core version."
 
-    if ! printf '%s' "$install_version" | grep -Eq '^v?[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$'; then
-        echo "❌ COMFYUI_VERSION must be semver (example: 0.18.2 or v0.18.2). Got: '$install_version'."
-        return 1
-    fi
-    echo "Installing ComfyUI core via git (version: ${install_version})..."
-    if ! git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFYUI_DIR"; then
-        echo "❌ Failed to clone ComfyUI repo into $COMFYUI_DIR"
-        return 1
-    fi
-
-    if ! git -C "$COMFYUI_DIR" fetch --tags --force; then
-        echo "❌ Failed to fetch ComfyUI tags."
-        return 1
-    fi
-
-    local checkout_ref=""
-    if git -C "$COMFYUI_DIR" rev-parse -q --verify "v${install_version#v}^{commit}" >/dev/null 2>&1; then
-        checkout_ref="v${install_version#v}"
-    elif git -C "$COMFYUI_DIR" rev-parse -q --verify "${install_version#v}^{commit}" >/dev/null 2>&1; then
-        checkout_ref="${install_version#v}"
-    else
-        echo "❌ Requested ComfyUI version ref not found: ${install_version}"
-        return 1
-    fi
-
-    if ! git -C "$COMFYUI_DIR" checkout -q "$checkout_ref"; then
-        echo "❌ Failed to checkout ComfyUI ref: $checkout_ref"
-        return 1
-    fi
-
-    if ! python3 -m pip install --no-cache-dir -r "$COMFYUI_DIR/requirements.txt"; then
-        echo "❌ Failed to install ComfyUI requirements."
-        return 1
-    fi
-
-    return 0
+    return 1
 }
 
 
@@ -178,7 +140,7 @@ install_comfyui_with_comfy_cli() {
         return 1
     fi
 
-    if ! install_comfyui_core_with_comfy_cli; then
+    if ! verify_comfyui_core_workspace; then
         return 1
     fi
 
