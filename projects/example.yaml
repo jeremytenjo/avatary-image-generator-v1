@@ -1,9 +1,0 @@
-comfyui_version: '0.18.2'
-
-custom_nodes:
-  - repo_dir: 'ComfyUI-Easy-Use'
-    repo: 'https://github.com/yolain/ComfyUI-Easy-Use.git'
-
-models:
-  - url: 'https://huggingface.co/avatary-ai/files/resolve/main/ae.safetensors'
-    target: 'models/vae/ae.safetensors'
