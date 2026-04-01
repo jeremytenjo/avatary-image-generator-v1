@@ -21,6 +21,10 @@ Run this command in the terminal to start ComfyUI. First step: enter your direct
 
 Run this command in the terminal to switch projects. First step: enter your direct YAML URL `bash start-new-project.sh`
 
+Run this command in the terminal to add another project manifest without removing existing resources `bash add-project.sh`
+
+Run this command in the terminal to replace current project resources with a new project manifest `bash replace-project.sh`
+
 Run this command in the terminal to restart ComfyUI `bash restart-comfyui.sh`
 
 Run this command in the terminal to update nodes and models (uses the last saved YAML URL) `bash update-nodes-and-models.sh`

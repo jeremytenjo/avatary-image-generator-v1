@@ -54,6 +54,8 @@ RUN set -eux; \
 
 COPY start.sh /start.sh
 COPY start-new-project.sh /start-new-project.sh
+COPY add-project.sh /add-project.sh
+COPY replace-project.sh /replace-project.sh
 COPY install.sh /install.sh
 COPY update-nodes-and-models.sh /update-nodes-and-models.sh
 COPY restart-comfyui.sh /restart-comfyui.sh
@@ -61,7 +63,7 @@ COPY help.sh /help.sh
 COPY projects /projects
 COPY handlers /handlers
 
-RUN chmod +x /start.sh /start-new-project.sh /install.sh /update-nodes-and-models.sh /restart-comfyui.sh /help.sh
+RUN chmod +x /start.sh /start-new-project.sh /add-project.sh /replace-project.sh /install.sh /update-nodes-and-models.sh /restart-comfyui.sh /help.sh
 
 EXPOSE 8188 8888
 

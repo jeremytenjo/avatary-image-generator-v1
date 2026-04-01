@@ -12,6 +12,12 @@ Dynamic ComfyUI Commands
 - bash start-new-project.sh
   Enter a new YAML URL and optionally clean previous project resources.
 
+- bash add-project.sh
+  Enter a new YAML URL and add missing nodes/models (keeps existing resources).
+
+- bash replace-project.sh
+  Enter a new YAML URL, remove previous project resources, then install/start new resources.
+
 - bash update-nodes-and-models.sh
   Re-download the last saved YAML URL, refresh nodes/models, and restart ComfyUI.
 
