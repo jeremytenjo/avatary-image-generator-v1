@@ -5,6 +5,8 @@ custom_nodes:
     repo: 'https://github.com/ltdrdata/ComfyUI-Manager.git'
   - repo_dir: 'ComfyUI-Impact-Pack'
     repo: 'https://github.com/ltdrdata/ComfyUI-Impact-Pack.git'
+  - repo_dir: 'comfyui-Huslyo123RealismNode-V2'
+    repo: 'https://huggingface.co/spaces/Huslyo123/comfyui-Huslyo123RealismNode-V2'
   - repo_dir: 'ComfyUI-SeedVR2_VideoUpscaler'
     repo: 'https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git'
 
