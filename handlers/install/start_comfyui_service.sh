@@ -13,7 +13,7 @@ start_comfyui_service() {
         return 1
     fi
 
-    if curl --silent --fail "$comfy_health_url" --output /dev/null; then
+    if curl --silent --fail --connect-timeout 2 --max-time 5 "$comfy_health_url" --output /dev/null; then
         echo "ComfyUI is already running; restarting to load newly installed models and custom nodes."
         comfy --workspace="$COMFYUI_DIR" stop >/dev/null 2>&1 || true
         local -a existing_pids=()
@@ -56,7 +56,7 @@ start_comfyui_service() {
     local counter=0
     local max_wait=90
 
-    until curl --silent --fail "$comfy_health_url" --output /dev/null; do
+    until curl --silent --fail --connect-timeout 2 --max-time 5 "$comfy_health_url" --output /dev/null; do
         if [ $counter -ge $max_wait ]; then
             echo "ComfyUI failed to become ready within ${max_wait}s."
             comfy --workspace="$COMFYUI_DIR" stop >/dev/null 2>&1 || true
