@@ -71,10 +71,16 @@ start_comfyui_service() {
     local end_ts
     local elapsed_seconds
     local elapsed_minutes
+    local elapsed_remaining_seconds
     end_ts=$(date +%s)
     elapsed_seconds=$((end_ts - start_ts))
-    elapsed_minutes=$(( (elapsed_seconds + 59) / 60 ))
+    elapsed_minutes=$((elapsed_seconds / 60))
+    elapsed_remaining_seconds=$((elapsed_seconds % 60))
 
-    echo "🚀 ComfyUI is UP (${elapsed_minutes} minute(s))"
+    if [ "$elapsed_minutes" -gt 0 ]; then
+        echo "🚀 ComfyUI is UP (${elapsed_minutes}m ${elapsed_remaining_seconds}s)"
+    else
+        echo "🚀 ComfyUI is UP (${elapsed_seconds}s)"
+    fi
     return 0
 }
