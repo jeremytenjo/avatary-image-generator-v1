@@ -5,7 +5,7 @@
       "repo": "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git"
     }
   ],
-  "models": [
+  "files": [
     {
       "url": "https://huggingface.co/jeremyhola/LORAs/resolve/main/80082-v1.safetensors",
       "target": "models/loras/80082-v1.safetensors"

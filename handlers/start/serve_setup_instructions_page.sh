@@ -165,7 +165,7 @@ serve_setup_instructions_page() {
       <li>Open a terminal in Jupyter.</li>
       <li>Run <code>bash start.sh</code></li>
     </ol>
-    <p>The installer downloads models and custom nodes, then starts ComfyUI on port 8188.</p>
+    <p>The installer downloads files and custom nodes, then starts ComfyUI on port 8188.</p>
     <p class="hint">You can keep this tab open and refresh after installation completes.</p>
     <section class="progress">
       <h2>Download checklist</h2>

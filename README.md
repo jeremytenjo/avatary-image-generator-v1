@@ -1,6 +1,6 @@
 # Dynamic ComfyUI Templates for RunPod
 
-Define your models and nodes in templates for easy ComfyUI environment setup on RunPod.
+Define your files and custom nodes in templates for easy ComfyUI environment setup on RunPod.
 
 ## Template Format
 
@@ -14,13 +14,11 @@ Example (`<URL>.json`):
       "repo": "https://github.com/yolain/ComfyUI-Easy-Use.git"
     }
   ],
-  "models": [
+  "files": [
     {
       "url": "https://huggingface.co/avatary-ai/files/resolve/main/ae.safetensors",
       "target": "models/vae/ae.safetensors"
-    }
-  ],
-  "files": [
+    },
     {
       "url": "https://example.com/config.json",
       "target": "custom_assets/config.json"
@@ -49,13 +47,11 @@ Manifest format:
       "repo": "https://github.com/example/example-node.git"
     }
   ],
-  "models": [
+  "files": [
     {
       "url": "https://huggingface.co/example/model/resolve/main/example.safetensors",
       "target": "models/checkpoints/example.safetensors"
-    }
-  ],
-  "files": [
+    },
     {
       "url": "https://example.com/config.json",
       "target": "custom_assets/config.json"
@@ -73,10 +69,10 @@ Manifest format:
   Enter a new JSON URL and optionally clean resources from the previously selected project.
 
 - `bash add-project.sh`
-  Enter a new JSON URL and add missing nodes/models/files without removing existing resources.
+  Enter a new JSON URL and add missing nodes/files without removing existing resources.
 
 - `bash replace-project.sh`
   Enter a new JSON URL, remove previous project resources, then reinstall/start the selected project resources.
 
 - `bash update-nodes-and-models.sh`
-  Re-download the last saved JSON URL, refresh nodes/models/files, then restart ComfyUI.
+  Re-download the last saved JSON URL, refresh nodes/files, then restart ComfyUI.

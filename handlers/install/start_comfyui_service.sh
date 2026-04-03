@@ -14,7 +14,7 @@ start_comfyui_service() {
     fi
 
     if is_http_reachable "$comfy_health_url" 2 5; then
-        echo "ComfyUI is already running; restarting to load newly installed models and custom nodes."
+        echo "ComfyUI is already running; restarting to load newly installed files and custom nodes."
         comfy --workspace="$COMFYUI_DIR" stop >/dev/null 2>&1 || true
         local -a existing_pids=()
         while IFS= read -r pid; do

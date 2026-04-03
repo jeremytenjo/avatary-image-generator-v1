@@ -33,16 +33,8 @@ if ! install_custom_nodes; then
     echo "❌ Custom node refresh failed."
     exit 1
 fi
-print_installed_custom_nodes_summary
-
-echo "Ensuring required models are installed..."
-if ! install_models_with_comfy_cli; then
-    setup_progress_mark_failed "Model refresh failed."
-    echo "❌ Model refresh failed."
-    exit 1
-fi
 setup_progress_refresh
-print_installed_models_summary
+print_installed_custom_nodes_summary
 
 echo "Ensuring required files are installed..."
 if ! install_files; then
@@ -53,14 +45,14 @@ fi
 setup_progress_refresh
 print_installed_files_summary
 
-echo "Node, model, and file refresh complete. Restarting ComfyUI..."
+echo "Node and file refresh complete. Restarting ComfyUI..."
 if ! bash /restart-comfyui.sh; then
     setup_progress_mark_failed "ComfyUI restart failed after refresh."
-    echo "❌ Node/model refresh succeeded, but ComfyUI restart failed."
+    echo "❌ Node/file refresh succeeded, but ComfyUI restart failed."
     exit 1
 fi
 
 setup_progress_mark_done
 print_installed_resources_summary
 
-echo "✅ Node, model, and file refresh complete. ComfyUI restarted."
+echo "✅ Node and file refresh complete. ComfyUI restarted."

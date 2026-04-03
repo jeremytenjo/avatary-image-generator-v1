@@ -10,12 +10,9 @@ load_install_manifest() {
     manifest_tmp_dir="$(install_manifest_tmp_dir)"
     rm -f \
         "$manifest_tmp_dir/custom_nodes.tsv" \
-        "$manifest_tmp_dir/models.tsv" \
         "$manifest_tmp_dir/files.tsv" \
         "$manifest_tmp_dir/default_custom_nodes.tsv" \
         "$manifest_tmp_dir/project_custom_nodes.tsv" \
-        "$manifest_tmp_dir/default_models.tsv" \
-        "$manifest_tmp_dir/project_models.tsv" \
         "$manifest_tmp_dir/default_files.tsv" \
         "$manifest_tmp_dir/project_files.tsv"
 
@@ -46,9 +43,8 @@ load_install_manifest() {
 
     eval "$exports_output"
 
-    if [ ! -f "$INSTALL_MANIFEST_CUSTOM_NODES_FILE" ] || [ ! -f "$INSTALL_MANIFEST_MODELS_FILE" ] || [ ! -f "$INSTALL_MANIFEST_FILES_FILE" ] || \
+    if [ ! -f "$INSTALL_MANIFEST_CUSTOM_NODES_FILE" ] || [ ! -f "$INSTALL_MANIFEST_FILES_FILE" ] || \
         [ ! -f "$INSTALL_MANIFEST_DEFAULT_CUSTOM_NODES_FILE" ] || [ ! -f "$INSTALL_MANIFEST_PROJECT_CUSTOM_NODES_FILE" ] || \
-        [ ! -f "$INSTALL_MANIFEST_DEFAULT_MODELS_FILE" ] || [ ! -f "$INSTALL_MANIFEST_PROJECT_MODELS_FILE" ] || \
         [ ! -f "$INSTALL_MANIFEST_DEFAULT_FILES_FILE" ] || [ ! -f "$INSTALL_MANIFEST_PROJECT_FILES_FILE" ]; then
         echo "❌ Manifest loader failed to generate normalized data files."
         return 1

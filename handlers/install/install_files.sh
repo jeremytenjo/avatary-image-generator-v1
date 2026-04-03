@@ -85,31 +85,58 @@ print_installed_files_summary_from_file() {
         return 0
     fi
 
-    local -a file_specs=()
     if ! read_nonempty_lines "$manifest_file"; then
         echo " - (failed to read)"
         return 0
     fi
-    if [ "${READ_NONEMPTY_LINES_COUNT:-0}" -gt 0 ]; then
-        file_specs=("${READ_NONEMPTY_LINES[@]}")
-    fi
-
-    if [ "${#file_specs[@]}" -eq 0 ]; then
+    if [ "${READ_NONEMPTY_LINES_COUNT:-0}" -eq 0 ]; then
         echo " - (none)"
         return 0
     fi
 
-    local spec
-    for spec in "${file_specs[@]}"; do
-        local file_url
-        local file_target
-        IFS=$'\t' read -r file_url file_target <<< "$spec"
-        if [ -f "$COMFYUI_DIR/$file_target" ]; then
-            echo " - $file_target"
-        else
-            echo " - $file_target (missing on disk)"
-        fi
-    done
+    if ! python3 - "$manifest_file" "${COMFYUI_DIR:-/workspace/ComfyUI}" <<'PY'
+import sys
+from collections import defaultdict
+from pathlib import Path
+
+
+def group_key(target: str) -> str:
+    parts = [part for part in Path(target).parts if part]
+    if len(parts) <= 1:
+        return "(root)"
+    dir_parts = parts[:-1]
+    if len(dir_parts) == 1:
+        return dir_parts[0]
+    return f"{dir_parts[0]}/{dir_parts[1]}"
+
+
+manifest_file = Path(sys.argv[1])
+comfyui_dir = Path(sys.argv[2])
+groups: dict[str, list[tuple[str, bool]]] = defaultdict(list)
+
+for raw in manifest_file.read_text(encoding="utf-8").splitlines():
+    line = raw.strip()
+    if not line:
+        continue
+    parts = line.split("\t", 1)
+    if len(parts) != 2:
+        continue
+    _url, target = parts
+    target = target.strip()
+    if not target:
+        continue
+    exists = (comfyui_dir / target).is_file()
+    groups[group_key(target)].append((target, exists))
+
+for key in sorted(groups):
+    print(f" - {key}")
+    for target, exists in groups[key]:
+        suffix = "" if exists else " (missing on disk)"
+        print(f"   - {target}{suffix}")
+PY
+    then
+        echo " - (failed to summarize)"
+    fi
 
     return 0
 }

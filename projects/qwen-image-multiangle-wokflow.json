@@ -37,7 +37,7 @@
       "repo": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git"
     }
   ],
-  "models": [
+  "files": [
     {
       "url": "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth",
       "target": "models/sams/sam_vit_b_01ec64.pth"

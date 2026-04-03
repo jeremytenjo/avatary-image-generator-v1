@@ -97,10 +97,9 @@ resolve_default_resources_manifest() {
         echo "ℹ️ Baked default resources manifest exists at: $baked_manifest_path (not used when remote defaults are unavailable)." >&2
     fi
 
-    cat > "$empty_manifest_path" <<'EOF'
+cat > "$empty_manifest_path" <<'EOF'
 {
   "custom_nodes": [],
-  "models": [],
   "files": []
 }
 EOF

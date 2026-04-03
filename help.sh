@@ -13,13 +13,13 @@ Dynamic ComfyUI Commands
   Enter a new JSON URL and optionally clean previous project resources.
 
 - bash add-project.sh
-  Enter a new JSON URL and add missing nodes/models (keeps existing resources).
+  Enter a new JSON URL and add missing nodes/files (keeps existing resources).
 
 - bash replace-project.sh
   Enter a new JSON URL, remove previous project resources, then install/start new resources.
 
 - bash update-nodes-and-models.sh
-  Re-download the last saved JSON URL, refresh nodes/models, and restart ComfyUI.
+  Re-download the last saved JSON URL, refresh nodes/files, and restart ComfyUI.
 
 - bash restart-comfyui.sh
   Restart ComfyUI service.

@@ -38,7 +38,6 @@ remove_project_resources_from_manifest() {
     fi
 
     local nodes_file="$cleanup_tmp_dir/custom_nodes.tsv"
-    local models_file="$cleanup_tmp_dir/models.tsv"
     local files_file="$cleanup_tmp_dir/files.tsv"
 
     if [ -f "$nodes_file" ]; then
@@ -51,18 +50,6 @@ remove_project_resources_from_manifest() {
                 rm -rf "$node_path"
             fi
         done < "$nodes_file"
-    fi
-
-    if [ -f "$models_file" ]; then
-        local model_target
-        while IFS= read -r model_target; do
-            [ -n "$model_target" ] || continue
-            local model_path="$COMFYUI_DIR/$model_target"
-            if [ -f "$model_path" ]; then
-                echo "Removing old model: $model_target"
-                rm -f "$model_path"
-            fi
-        done < "$models_file"
     fi
 
     if [ -f "$files_file" ]; then

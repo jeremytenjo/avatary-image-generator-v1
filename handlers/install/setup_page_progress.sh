@@ -23,19 +23,17 @@ write_setup_progress_json() {
 
     local default_custom_nodes_file="${INSTALL_MANIFEST_DEFAULT_CUSTOM_NODES_FILE:-}"
     local project_custom_nodes_file="${INSTALL_MANIFEST_PROJECT_CUSTOM_NODES_FILE:-}"
-    local default_models_file="${INSTALL_MANIFEST_DEFAULT_MODELS_FILE:-}"
-    local project_models_file="${INSTALL_MANIFEST_PROJECT_MODELS_FILE:-}"
     local default_files_file="${INSTALL_MANIFEST_DEFAULT_FILES_FILE:-}"
     local project_files_file="${INSTALL_MANIFEST_PROJECT_FILES_FILE:-}"
     local comfyui_dir="${COMFYUI_DIR:-/workspace/ComfyUI}"
 
-    if ! python3 - "$progress_file" "$status" "$message" "$comfyui_dir" "$default_custom_nodes_file" "$project_custom_nodes_file" "$default_models_file" "$project_models_file" "$default_files_file" "$project_files_file" <<'PY'
+    if ! python3 - "$progress_file" "$status" "$message" "$comfyui_dir" "$default_custom_nodes_file" "$project_custom_nodes_file" "$default_files_file" "$project_files_file" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 
-def read_models_or_files(tsv_path: str, kind: str, source: str) -> list[dict]:
+def read_files(tsv_path: str, source: str) -> list[dict]:
     items = []
     if not tsv_path:
         return items
@@ -51,7 +49,7 @@ def read_models_or_files(tsv_path: str, kind: str, source: str) -> list[dict]:
         if len(parts) != 2:
             continue
         _url, target = parts
-        items.append({"target": target, "kind": kind, "source": source})
+        items.append({"target": target, "kind": "file", "source": source})
     return items
 
 
@@ -75,7 +73,7 @@ def read_custom_nodes(tsv_path: str, source: str) -> list[dict]:
     return items
 
 
-if len(sys.argv) != 11:
+if len(sys.argv) != 9:
     raise SystemExit(1)
 
 progress_file = Path(sys.argv[1])
@@ -84,21 +82,11 @@ message = sys.argv[3]
 comfyui_dir = Path(sys.argv[4])
 default_custom_nodes_tsv = sys.argv[5]
 project_custom_nodes_tsv = sys.argv[6]
-default_models_tsv = sys.argv[7]
-project_models_tsv = sys.argv[8]
-default_files_tsv = sys.argv[9]
-project_files_tsv = sys.argv[10]
+default_files_tsv = sys.argv[7]
+project_files_tsv = sys.argv[8]
 
-default_items = (
-    read_custom_nodes(default_custom_nodes_tsv, "default")
-    + read_models_or_files(default_models_tsv, "model", "default")
-    + read_models_or_files(default_files_tsv, "file", "default")
-)
-project_items = (
-    read_custom_nodes(project_custom_nodes_tsv, "project")
-    + read_models_or_files(project_models_tsv, "model", "project")
-    + read_models_or_files(project_files_tsv, "file", "project")
-)
+default_items = read_custom_nodes(default_custom_nodes_tsv, "default") + read_files(default_files_tsv, "default")
+project_items = read_custom_nodes(project_custom_nodes_tsv, "project") + read_files(project_files_tsv, "project")
 for item in default_items + project_items:
     item_path = comfyui_dir / item["target"]
     if item["kind"] == "custom_node":

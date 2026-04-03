@@ -25,6 +25,11 @@ def load_json_mapping(path: Path, label: str) -> dict:
     return data
 
 
+def fail_if_models_key_present(manifest: dict, label: str) -> None:
+    if "models" in manifest:
+        fail(f"{label} uses unsupported key 'models'. Move entries under 'files'.")
+
+
 def validate_target(value: str, label: str, idx: int) -> str:
     target_value = value.strip()
     target_path = Path(target_value)
@@ -118,11 +123,14 @@ def parse_url_target_list(raw_items, label: str) -> List[Tuple[str, str]]:
 
 def write_merge_outputs(project_manifest_path: Path, default_manifest_path: Path, out_dir: Path) -> None:
     project_manifest = load_json_mapping(project_manifest_path, "Project manifest")
+    fail_if_models_key_present(project_manifest, "Project manifest")
+
     default_manifest = {}
     if default_manifest_path and default_manifest_path.exists():
         if not default_manifest_path.is_file():
             fail(f"Default resources manifest path is not a file: {default_manifest_path}")
         default_manifest = load_json_mapping(default_manifest_path, "Default resources manifest")
+        fail_if_models_key_present(default_manifest, "Default resources manifest")
 
     default_custom_nodes = parse_custom_nodes(default_manifest.get("custom_nodes"), "default custom_nodes")
     project_custom_nodes = parse_custom_nodes(project_manifest.get("custom_nodes"), "project custom_nodes")
@@ -131,14 +139,6 @@ def write_merge_outputs(project_manifest_path: Path, default_manifest_path: Path
         merged_custom_nodes_by_repo_dir[repo_dir] = repo
     for repo_dir, repo in project_custom_nodes:
         merged_custom_nodes_by_repo_dir[repo_dir] = repo
-
-    default_models = parse_url_target_list(default_manifest.get("models"), "default models")
-    project_models = parse_url_target_list(project_manifest.get("models"), "project models")
-    merged_models_by_target: Dict[str, str] = {}
-    for url, target in default_models:
-        merged_models_by_target[target] = url
-    for url, target in project_models:
-        merged_models_by_target[target] = url
 
     default_files = parse_url_target_list(default_manifest.get("files"), "default files")
     project_files = parse_url_target_list(project_manifest.get("files"), "project files")
@@ -149,22 +149,15 @@ def write_merge_outputs(project_manifest_path: Path, default_manifest_path: Path
         merged_files_by_target[target] = url
 
     custom_nodes_file = out_dir / "custom_nodes.tsv"
-    models_file = out_dir / "models.tsv"
     files_file = out_dir / "files.tsv"
     default_custom_nodes_file = out_dir / "default_custom_nodes.tsv"
     project_custom_nodes_file = out_dir / "project_custom_nodes.tsv"
-    default_models_file = out_dir / "default_models.tsv"
-    project_models_file = out_dir / "project_models.tsv"
     default_files_file = out_dir / "default_files.tsv"
     project_files_file = out_dir / "project_files.tsv"
 
     with custom_nodes_file.open("w", encoding="utf-8") as nf:
         for repo_dir, repo in merged_custom_nodes_by_repo_dir.items():
             nf.write(f"{repo_dir}\t{repo}\n")
-
-    with models_file.open("w", encoding="utf-8") as mf:
-        for target, url in merged_models_by_target.items():
-            mf.write(f"{url}\t{target}\n")
 
     with files_file.open("w", encoding="utf-8") as ff:
         for target, url in merged_files_by_target.items():
@@ -178,14 +171,6 @@ def write_merge_outputs(project_manifest_path: Path, default_manifest_path: Path
         for repo_dir, repo in project_custom_nodes:
             nf.write(f"{repo_dir}\t{repo}\n")
 
-    with default_models_file.open("w", encoding="utf-8") as mf:
-        for url, target in default_models:
-            mf.write(f"{url}\t{target}\n")
-
-    with project_models_file.open("w", encoding="utf-8") as mf:
-        for url, target in project_models:
-            mf.write(f"{url}\t{target}\n")
-
     with default_files_file.open("w", encoding="utf-8") as ff:
         for url, target in default_files:
             ff.write(f"{url}\t{target}\n")
@@ -195,33 +180,26 @@ def write_merge_outputs(project_manifest_path: Path, default_manifest_path: Path
             ff.write(f"{url}\t{target}\n")
 
     print(f"export INSTALL_MANIFEST_CUSTOM_NODES_FILE={shlex.quote(str(custom_nodes_file))}")
-    print(f"export INSTALL_MANIFEST_MODELS_FILE={shlex.quote(str(models_file))}")
     print(f"export INSTALL_MANIFEST_FILES_FILE={shlex.quote(str(files_file))}")
     print(f"export INSTALL_MANIFEST_DEFAULT_CUSTOM_NODES_FILE={shlex.quote(str(default_custom_nodes_file))}")
     print(f"export INSTALL_MANIFEST_PROJECT_CUSTOM_NODES_FILE={shlex.quote(str(project_custom_nodes_file))}")
-    print(f"export INSTALL_MANIFEST_DEFAULT_MODELS_FILE={shlex.quote(str(default_models_file))}")
-    print(f"export INSTALL_MANIFEST_PROJECT_MODELS_FILE={shlex.quote(str(project_models_file))}")
     print(f"export INSTALL_MANIFEST_DEFAULT_FILES_FILE={shlex.quote(str(default_files_file))}")
     print(f"export INSTALL_MANIFEST_PROJECT_FILES_FILE={shlex.quote(str(project_files_file))}")
 
 
 def write_cleanup_outputs(manifest_path: Path, out_dir: Path) -> None:
     manifest = load_json_mapping(manifest_path, "Project manifest")
+    fail_if_models_key_present(manifest, "Project manifest")
+
     custom_node_dirs = parse_custom_node_dirs_for_cleanup(manifest.get("custom_nodes"), "custom_nodes")
-    models = parse_url_target_list(manifest.get("models"), "models")
     files = parse_url_target_list(manifest.get("files"), "files")
 
     custom_nodes_file = out_dir / "custom_nodes.tsv"
-    models_file = out_dir / "models.tsv"
     files_file = out_dir / "files.tsv"
 
     with custom_nodes_file.open("w", encoding="utf-8") as nf:
         for repo_dir in custom_node_dirs:
             nf.write(f"{repo_dir}\n")
-
-    with models_file.open("w", encoding="utf-8") as mf:
-        for _url, target in models:
-            mf.write(f"{target}\n")
 
     with files_file.open("w", encoding="utf-8") as ff:
         for _url, target in files:

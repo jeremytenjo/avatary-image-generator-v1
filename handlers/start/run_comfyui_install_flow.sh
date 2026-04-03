@@ -39,15 +39,6 @@ run_comfyui_install_flow() {
     setup_progress_refresh
     print_installed_custom_nodes_summary
 
-    echo "Installing required models..."
-    if ! install_models_with_comfy_cli; then
-        setup_progress_mark_failed "Model installation failed."
-        echo "Model installation failed."
-        return 1
-    fi
-    setup_progress_refresh
-    print_installed_models_summary
-
     echo "Installing required files..."
     if ! install_files; then
         setup_progress_mark_failed "File installation failed."

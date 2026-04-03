@@ -27,7 +27,7 @@ Run this command in the terminal to replace current project resources with a new
 
 Run this command in the terminal to restart ComfyUI `bash restart-comfyui.sh`
 
-Run this command in the terminal to update nodes and models (uses the last saved JSON URL) `bash update-nodes-and-models.sh`
+Run this command in the terminal to update nodes and files (uses the last saved JSON URL) `bash update-nodes-and-models.sh`
 
 Run this command in the terminal to list available commands `bash help.sh`
 
