@@ -21,6 +21,7 @@ Dynamic ComfyUI Commands
 - bash update-nodes-and-models.sh
   Re-download the last saved JSON URL (or refresh defaults-only if URL is empty), refresh nodes/files, and restart ComfyUI.
   If the manifest sets require_huggingface_token=true, this command prompts for a token each run.
+  Create a token at: https://huggingface.co/settings/tokens
 
 - bash restart-comfyui.sh
   Restart ComfyUI service.

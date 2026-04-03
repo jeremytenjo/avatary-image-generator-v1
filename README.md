@@ -49,6 +49,7 @@ Behavior when `require_huggingface_token` is `true`:
 - The installer prompts for a Hugging Face token before installation.
 - If the token is empty, installation stops immediately.
 - The token is used only for that run and is not saved.
+- Create a token at: https://huggingface.co/settings/tokens
 
 ## Default Resources (All Projects)
 

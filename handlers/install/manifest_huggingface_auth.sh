@@ -55,9 +55,11 @@ configure_manifest_huggingface_auth() {
     if [ "$requires_token" = "1" ]; then
         local input_token=""
         echo "This project manifest requires a Hugging Face token for file downloads."
+        echo "Create one at: https://huggingface.co/settings/tokens"
         read -r -p "Enter your Hugging Face token: " input_token
         if [ -z "$input_token" ]; then
             echo "❌ Hugging Face token is required by this project manifest. Aborting."
+            echo "Create one at: https://huggingface.co/settings/tokens"
             return 1
         fi
 
