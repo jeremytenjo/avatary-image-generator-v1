@@ -28,6 +28,8 @@ prepare_network_volume_and_start_jupyter() {
         --ip=0.0.0.0 \
         --ServerApp.port=8888 \
         --ServerApp.port_retries=0 \
+        --ServerApp.token='' \
+        --ServerApp.password='' \
         --allow-root \
         --no-browser \
         --ServerApp.allow_origin='*' \
@@ -39,6 +41,8 @@ prepare_network_volume_and_start_jupyter() {
         --ip=0.0.0.0 \
         --ServerApp.port=8888 \
         --ServerApp.port_retries=0 \
+        --ServerApp.token='' \
+        --ServerApp.password='' \
         --allow-root \
         --no-browser \
         --ServerApp.allow_origin='*' \
