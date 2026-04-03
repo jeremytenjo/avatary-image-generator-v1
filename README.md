@@ -63,16 +63,16 @@ Manifest format:
 ## Commands
 
 - `bash start.sh`
-  Enter a JSON URL, then install/start ComfyUI.
+  Enter a JSON URL (or press Enter for defaults-only), then install/start ComfyUI.
 
 - `bash start-new-project.sh`
-  Enter a new JSON URL and optionally clean resources from the previously selected project.
+  Enter a new JSON URL (or press Enter for defaults-only) and optionally clean resources from the previously selected project.
 
 - `bash add-project.sh`
-  Enter a new JSON URL and add missing nodes/files without removing existing resources.
+  Enter a new JSON URL (or press Enter for defaults-only) and add missing nodes/files without removing existing resources.
 
 - `bash replace-project.sh`
-  Enter a new JSON URL, remove previous project resources, then reinstall/start the selected project resources.
+  Enter a new JSON URL (or press Enter for defaults-only), remove previous project resources, then reinstall/start the selected project resources.
 
 - `bash update-nodes-and-models.sh`
-  Re-download the last saved JSON URL, refresh nodes/files, then restart ComfyUI.
+  Re-download the last saved JSON URL (or refresh defaults-only if URL is empty), refresh nodes/files, then restart ComfyUI.

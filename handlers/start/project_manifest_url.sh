@@ -52,6 +52,30 @@ download_project_manifest_from_url() {
 }
 
 
+write_empty_project_manifest() {
+    local target_path="$1"
+    local target_dir
+    target_dir="$(dirname "$target_path")"
+
+    if ! mkdir -p "$target_dir"; then
+        echo "❌ Failed to create manifest directory: $target_dir"
+        return 1
+    fi
+
+    if ! printf '{}\n' > "$target_path"; then
+        echo "❌ Failed to write empty project manifest: $target_path"
+        return 1
+    fi
+
+    if [ ! -s "$target_path" ]; then
+        echo "❌ Empty project manifest was not written: $target_path"
+        return 1
+    fi
+
+    return 0
+}
+
+
 prompt_and_prepare_project_manifest_from_url() {
     local source_url=""
     local normalized_url=""
@@ -61,8 +85,11 @@ prompt_and_prepare_project_manifest_from_url() {
     while true; do
         read -r -p "Enter project URL: " source_url
         if [ -z "$source_url" ]; then
-            echo "❌ JSON URL is required."
-            continue
+            normalized_url=""
+            if ! write_empty_project_manifest "$manifest_path"; then
+                continue
+            fi
+            break
         fi
 
         normalized_url="$(normalize_project_manifest_url "$source_url")"
@@ -84,7 +111,11 @@ prompt_and_prepare_project_manifest_from_url() {
     INSTALL_MANIFEST_PATH="$manifest_path"
     export SELECTED_PROJECT_KEY SELECTED_PROJECT_MANIFEST_PATH SELECTED_PROJECT_SOURCE_URL INSTALL_MANIFEST_PATH
 
-    echo "Using manifest URL: $SELECTED_PROJECT_SOURCE_URL"
+    if [ -n "$SELECTED_PROJECT_SOURCE_URL" ]; then
+        echo "Using manifest URL: $SELECTED_PROJECT_SOURCE_URL"
+    else
+        echo "Using defaults-only install (no project URL)."
+    fi
     return 0
 }
 
@@ -108,19 +139,21 @@ refresh_project_manifest_from_saved_url() {
         echo "❌ Saved project selection is invalid: $state_path"
         return 1
     fi
+
     if [ -z "$saved_source_url" ]; then
-        echo "❌ Saved project selection is missing source URL (legacy state). Run 'bash start.sh' once."
-        return 1
-    fi
+        if ! write_empty_project_manifest "$manifest_path"; then
+            return 1
+        fi
+    else
+        saved_source_url="$(normalize_project_manifest_url "$saved_source_url")"
+        if ! validate_project_manifest_url "$saved_source_url"; then
+            echo "❌ Saved project URL is invalid. Run 'bash start.sh' and enter a valid JSON URL."
+            return 1
+        fi
 
-    saved_source_url="$(normalize_project_manifest_url "$saved_source_url")"
-    if ! validate_project_manifest_url "$saved_source_url"; then
-        echo "❌ Saved project URL is invalid. Run 'bash start.sh' and enter a valid JSON URL."
-        return 1
-    fi
-
-    if ! download_project_manifest_from_url "$saved_source_url" "$manifest_path"; then
-        return 1
+        if ! download_project_manifest_from_url "$saved_source_url" "$manifest_path"; then
+            return 1
+        fi
     fi
 
     SELECTED_PROJECT_KEY="active-project"

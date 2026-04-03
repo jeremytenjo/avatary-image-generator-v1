@@ -88,10 +88,6 @@ set_install_manifest_from_saved_project() {
         echo "❌ No saved project selection found. Run 'bash start.sh' or 'bash start-new-project.sh' first."
         return 1
     fi
-    if [ -z "${SAVED_PROJECT_SOURCE_URL:-}" ]; then
-        echo "❌ Saved project selection is missing source URL (legacy state). Run 'bash start.sh' once."
-        return 1
-    fi
 
     INSTALL_MANIFEST_PATH="$SAVED_PROJECT_MANIFEST_PATH"
     SELECTED_PROJECT_KEY="$SAVED_PROJECT_KEY"
