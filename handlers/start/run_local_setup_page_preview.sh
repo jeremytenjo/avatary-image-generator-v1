@@ -9,8 +9,6 @@ PORT="$DEFAULT_PORT"
 
 if [[ "$PORT_INPUT" =~ ^[0-9]+$ ]] && [ "$PORT_INPUT" -ge 1 ] && [ "$PORT_INPUT" -le 65535 ]; then
     PORT="$PORT_INPUT"
-else
-    echo "⚠️ Invalid port '${PORT_INPUT}'. Falling back to ${DEFAULT_PORT}."
 fi
 
 if [ ! -f "$PREVIEW_DIR/index.html" ]; then

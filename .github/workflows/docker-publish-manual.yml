@@ -44,8 +44,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          submodules: recursive
 
       - name: Free disk space on runner
         run: |
@@ -235,8 +233,8 @@ jobs:
           sbom: false
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image_name }}:${{ steps.version.outputs.version_tag }}
           build-args: ${{ steps.comfyui.outputs.build_args }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ inputs.image_name }}
+          cache-to: type=gha,scope=${{ inputs.image_name }},mode=max
 
       - name: Push latest tag without rebuild
         if: ${{ inputs.push_latest }}
