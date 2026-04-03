@@ -33,7 +33,7 @@ require_install_tools() {
     local -a missing=()
     local tool
 
-    for tool in python3 wget git; do
+    for tool in python3 git; do
         if ! command -v "$tool" > /dev/null 2>&1; then
             missing+=("$tool")
         fi
