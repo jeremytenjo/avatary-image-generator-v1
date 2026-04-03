@@ -58,6 +58,7 @@ remove_previous_project_resources_and_reinstall_selected() {
         echo "❌ Failed to reinstall selected project custom nodes after cleanup."
         return 1
     fi
+    setup_progress_refresh
     print_installed_custom_nodes_summary
     if ! install_models_with_comfy_cli; then
         setup_progress_mark_failed "Failed to reinstall selected project models after cleanup."

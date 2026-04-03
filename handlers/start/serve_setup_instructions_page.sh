@@ -74,6 +74,11 @@ serve_setup_instructions_page() {
       font-size: 14px;
       color: #cbd5e1;
     }
+    .summary {
+      margin: 0 0 12px;
+      font-size: 13px;
+      color: #93c5fd;
+    }
     .checklist {
       margin: 0;
       padding: 0;
@@ -112,28 +117,6 @@ serve_setup_instructions_page() {
       word-break: break-word;
       flex: 1;
     }
-    .kind {
-      color: #93c5fd;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      margin-left: 8px;
-    }
-    .item-state {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-left: 8px;
-      white-space: nowrap;
-    }
-    .item-state.done {
-      color: #22c55e;
-    }
-    .item-state.loading {
-      color: #fbbf24;
-    }
-    .item-state.failed {
-      color: #f87171;
-    }
     a.inline-link {
       color: #93c5fd;
       text-decoration: underline;
@@ -157,6 +140,7 @@ serve_setup_instructions_page() {
     <section class="progress">
       <h2>Download checklist</h2>
       <p id="progress-status" class="status">Status: Pending</p>
+      <p id="progress-summary" class="summary">0/0 complete • 0 left</p>
       <div id="progress-groups" class="groups"></div>
     </section>
   </main>
@@ -191,16 +175,20 @@ serve_setup_instructions_page() {
 
     function renderProgress(payload) {
       const statusEl = document.getElementById("progress-status");
+      const summaryEl = document.getElementById("progress-summary");
       const groupsEl = document.getElementById("progress-groups");
-      if (!statusEl || !groupsEl) return;
+      if (!statusEl || !summaryEl || !groupsEl) return;
 
       const statusText = humanStatus(payload?.status);
-      const message = payload?.message ? ` — ${payload.message}` : "";
-      statusEl.textContent = `Status: ${statusText}${message}`;
+      statusEl.textContent = `Status: ${statusText}`;
 
       const defaultGroup = payload?.groups?.default || { label: "Default resources", items: [] };
       const projectGroup = payload?.groups?.project || { label: "Project manifest", items: [] };
       const allCount = (defaultGroup.items?.length || 0) + (projectGroup.items?.length || 0);
+      const doneCount = (defaultGroup.items || []).filter((item) => item.checked).length +
+        (projectGroup.items || []).filter((item) => item.checked).length;
+      const leftCount = Math.max(allCount - doneCount, 0);
+      summaryEl.textContent = `${doneCount}/${allCount} complete • ${leftCount} left`;
       if (allCount === 0) {
         groupsEl.innerHTML = "<ul class=\"checklist\"><li>Waiting for installation to start...</li></ul>";
         return;
@@ -208,18 +196,19 @@ serve_setup_instructions_page() {
 
       groupsEl.innerHTML = "";
 
-      function itemState(item, flowStatus) {
-        if (item.checked) return { text: "Done", className: "done" };
-        if (flowStatus === "running") return { text: "Loading", className: "loading" };
-        if (flowStatus === "failed") return { text: "Failed", className: "failed" };
-        return { text: "Pending", className: "" };
+      function groupCounts(group) {
+        const total = Array.isArray(group.items) ? group.items.length : 0;
+        const done = (group.items || []).filter((item) => item.checked).length;
+        const left = Math.max(total - done, 0);
+        return { total, done, left };
       }
 
       function renderGroup(group) {
         const wrapper = document.createElement("div");
         wrapper.className = "group";
         const heading = document.createElement("h3");
-        heading.textContent = group.label;
+        const counts = groupCounts(group);
+        heading.textContent = `${group.label} (${counts.done}/${counts.total}, ${counts.left} left)`;
         wrapper.appendChild(heading);
         const listEl = document.createElement("ul");
         listEl.className = "checklist";
@@ -239,17 +228,8 @@ serve_setup_instructions_page() {
           const target = document.createElement("span");
           target.className = "target";
           target.textContent = item.target || "(unknown target)";
-          const kind = document.createElement("span");
-          kind.className = "kind";
-          kind.textContent = item.kind || "item";
-          const state = itemState(item, payload?.status);
-          const stateEl = document.createElement("span");
-          stateEl.className = `item-state ${state.className}`.trim();
-          stateEl.textContent = state.text;
           li.appendChild(checkbox);
           li.appendChild(target);
-          li.appendChild(kind);
-          li.appendChild(stateEl);
           listEl.appendChild(li);
         }
         wrapper.appendChild(listEl);

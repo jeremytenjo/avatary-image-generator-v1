@@ -36,6 +36,7 @@ run_comfyui_install_flow() {
         echo "Custom node installation failed."
         return 1
     fi
+    setup_progress_refresh
     print_installed_custom_nodes_summary
 
     echo "Installing required models..."
