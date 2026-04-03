@@ -61,6 +61,12 @@
       font-size: 13px;
       color: #93c5fd;
     }
+    .message {
+      margin: 0 0 12px;
+      font-size: 13px;
+      color: #fca5a5;
+      word-break: break-word;
+    }
     .checklist {
       margin: 0;
       padding: 0;
@@ -179,6 +185,7 @@
       <h2>Download checklist</h2>
       <p id="progress-status" class="status">Status: Pending</p>
       <p id="progress-summary" class="summary">0/0 complete • 0 left</p>
+      <p id="progress-message" class="message"></p>
       <div id="progress-groups" class="groups"></div>
     </section>
   </main>
@@ -231,6 +238,7 @@
       },
       failed: {
         status: "failed",
+        message: "Failed to install ComfyUI core workspace.",
         groups: {
           default: {
             label: "Default resources",
@@ -286,11 +294,13 @@
     function renderProgress(payload) {
       const statusEl = document.getElementById("progress-status");
       const summaryEl = document.getElementById("progress-summary");
+      const messageEl = document.getElementById("progress-message");
       const groupsEl = document.getElementById("progress-groups");
-      if (!statusEl || !summaryEl || !groupsEl) return;
+      if (!statusEl || !summaryEl || !messageEl || !groupsEl) return;
 
       const statusText = humanStatus(payload?.status);
       statusEl.textContent = `Status: ${statusText}`;
+      messageEl.textContent = payload?.message || "";
       const isRunning = payload?.status === "running";
 
       const defaultGroup = payload?.groups?.default || { label: "Default resources", items: [] };

@@ -96,17 +96,19 @@ prepare_comfyui_install_target() {
 
 
 cleanup_comfyui_invalid_backup() {
-    if [ -z "$COMFYUI_INVALID_BACKUP_DIR" ]; then
+    local backup_dir="${COMFYUI_INVALID_BACKUP_DIR:-}"
+
+    if [ -z "$backup_dir" ]; then
         return 0
     fi
 
-    if [ ! -d "$COMFYUI_INVALID_BACKUP_DIR" ]; then
+    if [ ! -d "$backup_dir" ]; then
         return 0
     fi
 
-    echo "Removing temporary invalid ComfyUI backup: $COMFYUI_INVALID_BACKUP_DIR"
-    if ! rm -rf "$COMFYUI_INVALID_BACKUP_DIR"; then
-        echo "⚠️ Failed to remove temporary backup: $COMFYUI_INVALID_BACKUP_DIR"
+    echo "Removing temporary invalid ComfyUI backup: $backup_dir"
+    if ! rm -rf "$backup_dir"; then
+        echo "⚠️ Failed to remove temporary backup: $backup_dir"
         return 1
     fi
 
