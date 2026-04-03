@@ -133,6 +133,16 @@ serve_setup_instructions_page() {
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
+    .check-emoji {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      flex: 0 0 16px;
+      font-size: 15px;
+      line-height: 1;
+    }
     @keyframes spin {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
@@ -254,6 +264,13 @@ serve_setup_instructions_page() {
             spinner.title = "Loading";
             itemStatus.appendChild(spinner);
             li.appendChild(itemStatus);
+          } else if (item.checked) {
+            const checkEmoji = document.createElement("span");
+            checkEmoji.className = "check-emoji";
+            checkEmoji.setAttribute("aria-label", "Completed");
+            checkEmoji.title = "Completed";
+            checkEmoji.textContent = "✅";
+            li.appendChild(checkEmoji);
           } else {
             const checkbox = document.createElement("input");
             checkbox.type = "checkbox";
