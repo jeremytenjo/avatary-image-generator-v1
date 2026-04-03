@@ -24,6 +24,16 @@ prepare_network_volume_and_start_jupyter() {
 
     rm -f "$jupyter_log"
     echo "Starting JupyterLab on 0.0.0.0:8888 (root: $notebook_dir)"
+    printf 'Jupyter launch args: %q ' "${jupyter_cmd[@]}" \
+        --ip=0.0.0.0 \
+        --ServerApp.port=8888 \
+        --ServerApp.port_retries=0 \
+        --allow-root \
+        --no-browser \
+        --ServerApp.allow_origin='*' \
+        --ServerApp.allow_credentials=True \
+        --ServerApp.root_dir="$notebook_dir"
+    echo
     # Use explicit ServerApp options so proxy target is deterministic on RunPod.
     nohup "${jupyter_cmd[@]}" \
         --ip=0.0.0.0 \
@@ -33,8 +43,7 @@ prepare_network_volume_and_start_jupyter() {
         --no-browser \
         --ServerApp.allow_origin='*' \
         --ServerApp.allow_credentials=True \
-        --ServerApp.root_dir="$notebook_dir" \
-        --notebook-dir="$notebook_dir" >"$jupyter_log" 2>&1 &
+        --ServerApp.root_dir="$notebook_dir" >"$jupyter_log" 2>&1 &
 
     local jupyter_pid=$!
     local waited=0
