@@ -36,12 +36,14 @@ run_comfyui_install_flow() {
         echo "Model installation failed."
         return 1
     fi
+    print_installed_models_summary
 
     echo "Installing required files..."
     if ! install_files; then
         echo "File installation failed."
         return 1
     fi
+    print_installed_files_summary
 
     write_install_sentinel
 

@@ -138,3 +138,38 @@ install_models_with_comfy_cli() {
 
     return 0
 }
+
+
+print_installed_models_summary() {
+    if [ -z "${INSTALL_MANIFEST_MODELS_FILE:-}" ] || [ ! -f "$INSTALL_MANIFEST_MODELS_FILE" ]; then
+        echo "⚠️ Model manifest summary unavailable."
+        return 0
+    fi
+
+    local -a model_specs=()
+    if ! read_nonempty_lines "$INSTALL_MANIFEST_MODELS_FILE"; then
+        echo "⚠️ Failed to read model manifest entries for summary."
+        return 0
+    fi
+    model_specs=("${READ_NONEMPTY_LINES[@]}")
+
+    echo "Installed models:"
+    if [ "${#model_specs[@]}" -eq 0 ]; then
+        echo " - (none)"
+        return 0
+    fi
+
+    local spec
+    for spec in "${model_specs[@]}"; do
+        local model_url
+        local model_target
+        IFS=$'\t' read -r model_url model_target <<< "$spec"
+        if [ -f "$COMFYUI_DIR/$model_target" ]; then
+            echo " - $model_target"
+        else
+            echo " - $model_target (missing on disk)"
+        fi
+    done
+
+    return 0
+}

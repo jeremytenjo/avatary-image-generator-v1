@@ -64,3 +64,38 @@ install_files() {
 
     return 0
 }
+
+
+print_installed_files_summary() {
+    if [ -z "${INSTALL_MANIFEST_FILES_FILE:-}" ] || [ ! -f "$INSTALL_MANIFEST_FILES_FILE" ]; then
+        echo "⚠️ File manifest summary unavailable."
+        return 0
+    fi
+
+    local -a file_specs=()
+    if ! read_nonempty_lines "$INSTALL_MANIFEST_FILES_FILE"; then
+        echo "⚠️ Failed to read file manifest entries for summary."
+        return 0
+    fi
+    file_specs=("${READ_NONEMPTY_LINES[@]}")
+
+    echo "Installed files:"
+    if [ "${#file_specs[@]}" -eq 0 ]; then
+        echo " - (none)"
+        return 0
+    fi
+
+    local spec
+    for spec in "${file_specs[@]}"; do
+        local file_url
+        local file_target
+        IFS=$'\t' read -r file_url file_target <<< "$spec"
+        if [ -f "$COMFYUI_DIR/$file_target" ]; then
+            echo " - $file_target"
+        else
+            echo " - $file_target (missing on disk)"
+        fi
+    done
+
+    return 0
+}

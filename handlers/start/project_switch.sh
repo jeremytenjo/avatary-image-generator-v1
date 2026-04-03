@@ -55,14 +55,17 @@ remove_previous_project_resources_and_reinstall_selected() {
         echo "❌ Failed to reinstall selected project custom nodes after cleanup."
         return 1
     fi
+    print_installed_custom_nodes_summary
     if ! install_models_with_comfy_cli; then
         echo "❌ Failed to reinstall selected project models after cleanup."
         return 1
     fi
+    print_installed_models_summary
     if ! install_files; then
         echo "❌ Failed to reinstall selected project files after cleanup."
         return 1
     fi
+    print_installed_files_summary
     if ! start_comfyui_service; then
         return 1
     fi

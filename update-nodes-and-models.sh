@@ -36,12 +36,14 @@ if ! install_models_with_comfy_cli; then
     echo "❌ Model refresh failed."
     exit 1
 fi
+print_installed_models_summary
 
 echo "Ensuring required files are installed..."
 if ! install_files; then
     echo "❌ File refresh failed."
     exit 1
 fi
+print_installed_files_summary
 
 echo "Node, model, and file refresh complete. Restarting ComfyUI..."
 if ! bash /restart-comfyui.sh; then
