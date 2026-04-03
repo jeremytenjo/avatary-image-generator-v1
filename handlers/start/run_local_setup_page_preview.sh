@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PREVIEW_DIR="$SCRIPT_DIR/local-setup-page-preview"
-DEFAULT_PORT=8188
+DEFAULT_PORT=8189
 PORT_INPUT="${1:-$DEFAULT_PORT}"
 PORT="$DEFAULT_PORT"
 
