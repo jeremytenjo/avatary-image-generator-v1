@@ -76,11 +76,11 @@ install_custom_nodes() {
     fi
 
     local -a custom_node_specs=()
-    local node_line
-    while IFS= read -r node_line; do
-        [ -n "$node_line" ] || continue
-        custom_node_specs+=("$node_line")
-    done < "$INSTALL_MANIFEST_CUSTOM_NODES_FILE"
+    if ! read_nonempty_lines "$INSTALL_MANIFEST_CUSTOM_NODES_FILE"; then
+        echo "❌ Failed to read custom node manifest entries: $INSTALL_MANIFEST_CUSTOM_NODES_FILE"
+        return 1
+    fi
+    custom_node_specs=("${READ_NONEMPTY_LINES[@]}")
 
     if [ "${#custom_node_specs[@]}" -eq 0 ]; then
         echo "No custom nodes defined in install manifest; skipping node installation."

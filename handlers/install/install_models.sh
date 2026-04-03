@@ -69,11 +69,11 @@ install_models_with_comfy_cli() {
     fi
 
     local -a model_specs=()
-    local model_line
-    while IFS= read -r model_line; do
-        [ -n "$model_line" ] || continue
-        model_specs+=("$model_line")
-    done < "$INSTALL_MANIFEST_MODELS_FILE"
+    if ! read_nonempty_lines "$INSTALL_MANIFEST_MODELS_FILE"; then
+        echo "❌ Failed to read model install manifest entries: $INSTALL_MANIFEST_MODELS_FILE"
+        return 1
+    fi
+    model_specs=("${READ_NONEMPTY_LINES[@]}")
 
     if [ "${#model_specs[@]}" -eq 0 ]; then
         echo "No models defined in install manifest; skipping model installation."

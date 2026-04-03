@@ -11,10 +11,8 @@ download_file_with_curl() {
         return 0
     fi
 
-    mkdir -p "$(dirname "$full_path")"
-
     echo "⬇️ Downloading file: $target_rel"
-    if ! curl --silent --show-error --fail --location "$url" --output "$full_path"; then
+    if ! curl_download_to_file "$url" "$full_path"; then
         echo "❌ Failed to download file target: $target_rel"
         return 1
     fi
@@ -30,11 +28,11 @@ install_files() {
     fi
 
     local -a file_specs=()
-    local file_line
-    while IFS= read -r file_line; do
-        [ -n "$file_line" ] || continue
-        file_specs+=("$file_line")
-    done < "$INSTALL_MANIFEST_FILES_FILE"
+    if ! read_nonempty_lines "$INSTALL_MANIFEST_FILES_FILE"; then
+        echo "❌ Failed to read file install manifest entries: $INSTALL_MANIFEST_FILES_FILE"
+        return 1
+    fi
+    file_specs=("${READ_NONEMPTY_LINES[@]}")
 
     if [ "${#file_specs[@]}" -eq 0 ]; then
         echo "No files defined in install manifest; skipping file installation."

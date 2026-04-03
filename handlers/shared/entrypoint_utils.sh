@@ -31,3 +31,47 @@ source_start_handlers() {
     local script_dir="$1"
     source_handler_glob "$script_dir"/handlers/start/*.sh
 }
+
+
+read_nonempty_lines() {
+    local input_file="$1"
+
+    if [ ! -f "$input_file" ]; then
+        return 1
+    fi
+
+    READ_NONEMPTY_LINES=()
+
+    local line
+    while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        READ_NONEMPTY_LINES+=("$line")
+    done < "$input_file"
+
+    return 0
+}
+
+
+curl_download_to_file() {
+    local source_url="$1"
+    local target_path="$2"
+
+    mkdir -p "$(dirname "$target_path")"
+    if ! curl --silent --show-error --fail --location "$source_url" --output "$target_path"; then
+        return 1
+    fi
+
+    return 0
+}
+
+
+is_http_reachable() {
+    local url="$1"
+    local connect_timeout="${2:-2}"
+    local max_time="${3:-5}"
+
+    if curl --silent --fail --connect-timeout "$connect_timeout" --max-time "$max_time" "$url" --output /dev/null; then
+        return 0
+    fi
+    return 1
+}

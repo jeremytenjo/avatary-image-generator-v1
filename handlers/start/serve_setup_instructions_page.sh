@@ -8,7 +8,7 @@ serve_setup_instructions_page() {
     local comfy_health_url="http://127.0.0.1:8188/system_stats"
 
     # If ComfyUI is already reachable, don't start a placeholder page.
-    if curl --silent --fail "$comfy_health_url" --output /dev/null; then
+    if is_http_reachable "$comfy_health_url" 2 5; then
         return 0
     fi
 
@@ -77,7 +77,7 @@ serve_setup_instructions_page() {
 EOF
 
     # If something else already binds 8188, do nothing and keep startup resilient.
-    if curl --silent --fail "http://127.0.0.1:8188" --output /dev/null; then
+    if is_http_reachable "http://127.0.0.1:8188" 2 5; then
         return 0
     fi
 

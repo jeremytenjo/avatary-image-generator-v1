@@ -38,9 +38,7 @@ download_project_manifest_from_url() {
     local source_url="$1"
     local target_path="$2"
 
-    mkdir -p "$(dirname "$target_path")"
-
-    if ! curl --silent --show-error --fail --location "$source_url" --output "$target_path"; then
+    if ! curl_download_to_file "$source_url" "$target_path"; then
         echo "❌ Failed to download project manifest from URL: $source_url"
         return 1
     fi
