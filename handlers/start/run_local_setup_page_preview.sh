@@ -1,21 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PREVIEW_DIR="$SCRIPT_DIR/local-setup-page-preview"
-DEFAULT_PORT=8188
-PORT_INPUT="${1:-$DEFAULT_PORT}"
-PORT="$DEFAULT_PORT"
+run_local_setup_page_preview() {
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local preview_dir="$script_dir/local-setup-page-preview"
+    local default_port=8188
+    local port_input="${1:-$default_port}"
+    local port="$default_port"
 
-if [[ "$PORT_INPUT" =~ ^[0-9]+$ ]] && [ "$PORT_INPUT" -ge 1 ] && [ "$PORT_INPUT" -le 65535 ]; then
-    PORT="$PORT_INPUT"
+    if [[ "$port_input" =~ ^[0-9]+$ ]] && [ "$port_input" -ge 1 ] && [ "$port_input" -le 65535 ]; then
+        port="$port_input"
+    fi
+
+    if [ ! -f "$preview_dir/index.html" ]; then
+        echo "❌ Preview page not found: $preview_dir/index.html"
+        return 1
+    fi
+
+    echo "Serving local setup-page preview at http://127.0.0.1:${port}"
+    echo "Press Ctrl+C to stop."
+    python3 -m http.server "$port" --directory "$preview_dir"
+}
+
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    run_local_setup_page_preview "${1:-}"
 fi
-
-if [ ! -f "$PREVIEW_DIR/index.html" ]; then
-    echo "❌ Preview page not found: $PREVIEW_DIR/index.html"
-    exit 1
-fi
-
-echo "Serving local setup-page preview at http://127.0.0.1:${PORT}"
-echo "Press Ctrl+C to stop."
-python3 -m http.server "$PORT" --directory "$PREVIEW_DIR"
