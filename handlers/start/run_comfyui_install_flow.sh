@@ -36,6 +36,12 @@ run_comfyui_install_flow() {
         return 1
     fi
 
+    echo "Installing required files..."
+    if ! install_files; then
+        echo "File installation failed."
+        return 1
+    fi
+
     write_install_sentinel
 
     if ! start_comfyui_service; then

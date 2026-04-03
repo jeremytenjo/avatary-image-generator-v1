@@ -59,6 +59,10 @@ remove_previous_project_resources_and_reinstall_selected() {
         echo "❌ Failed to reinstall selected project models after cleanup."
         return 1
     fi
+    if ! install_files; then
+        echo "❌ Failed to reinstall selected project files after cleanup."
+        return 1
+    fi
     if ! start_comfyui_service; then
         return 1
     fi

@@ -8,7 +8,7 @@ load_install_manifest() {
 
     local manifest_tmp_dir
     manifest_tmp_dir="$(install_manifest_tmp_dir)"
-    rm -f "$manifest_tmp_dir/custom_nodes.tsv" "$manifest_tmp_dir/models.tsv"
+    rm -f "$manifest_tmp_dir/custom_nodes.tsv" "$manifest_tmp_dir/models.tsv" "$manifest_tmp_dir/files.tsv"
 
     local default_nodes_manifest_path=""
     if [ -n "${SCRIPT_DIR:-}" ]; then
@@ -110,6 +110,39 @@ def parse_models(raw_models, label: str) -> list[tuple[str, str]]:
         parsed.append((url_value, target_value))
     return parsed
 
+
+def parse_files(raw_files, label: str) -> list[tuple[str, str]]:
+    if raw_files is None:
+        return []
+    if not isinstance(raw_files, list):
+        fail(f"{label} must be a list")
+
+    parsed: list[tuple[str, str]] = []
+    for idx, item in enumerate(raw_files):
+        if not isinstance(item, dict):
+            fail(f"{label}[{idx}] must be a mapping")
+
+        url = item.get("url")
+        target = item.get("target")
+        if not isinstance(url, str) or not url.strip():
+            fail(f"{label}[{idx}] requires non-empty string field: url")
+        if not isinstance(target, str) or not target.strip():
+            fail(f"{label}[{idx}] requires non-empty string field: target")
+
+        target_value = target.strip()
+        target_path = Path(target_value)
+        if target_path.is_absolute():
+            fail(f"{label}[{idx}].target must be relative to ComfyUI root, got: {target_value}")
+        if ".." in target_path.parts:
+            fail(f"{label}[{idx}].target must not contain '..', got: {target_value}")
+
+        url_value = url.strip()
+        if "\t" in url_value or "\t" in target_value:
+            fail(f"{label}[{idx}] fields must not contain tabs")
+
+        parsed.append((url_value, target_value))
+    return parsed
+
 project_manifest = load_yaml_mapping(manifest_path, "Project manifest")
 
 default_manifest = {}
@@ -136,8 +169,18 @@ for url, target in default_models:
 for url, target in project_models:
     merged_models_by_target[target] = url
 
+default_files = parse_files(default_manifest.get("files"), "default files")
+project_files = parse_files(project_manifest.get("files"), "project files")
+
+merged_files_by_target: dict[str, str] = {}
+for url, target in default_files:
+    merged_files_by_target[target] = url
+for url, target in project_files:
+    merged_files_by_target[target] = url
+
 nodes_file = out_dir / "custom_nodes.tsv"
 models_file = out_dir / "models.tsv"
+files_file = out_dir / "files.tsv"
 
 with nodes_file.open("w", encoding="utf-8") as nf:
     for repo_dir, repo in merged_custom_nodes_by_repo_dir.items():
@@ -147,8 +190,13 @@ with models_file.open("w", encoding="utf-8") as mf:
     for target, url in merged_models_by_target.items():
         mf.write(f"{url}\t{target}\n")
 
+with files_file.open("w", encoding="utf-8") as ff:
+    for target, url in merged_files_by_target.items():
+        ff.write(f"{url}\t{target}\n")
+
 print(f"export INSTALL_MANIFEST_CUSTOM_NODES_FILE={shlex.quote(str(nodes_file))}")
 print(f"export INSTALL_MANIFEST_MODELS_FILE={shlex.quote(str(models_file))}")
+print(f"export INSTALL_MANIFEST_FILES_FILE={shlex.quote(str(files_file))}")
 PY
     )"; then
         return 1
@@ -156,7 +204,7 @@ PY
 
     eval "$exports_output"
 
-    if [ ! -f "$INSTALL_MANIFEST_CUSTOM_NODES_FILE" ] || [ ! -f "$INSTALL_MANIFEST_MODELS_FILE" ]; then
+    if [ ! -f "$INSTALL_MANIFEST_CUSTOM_NODES_FILE" ] || [ ! -f "$INSTALL_MANIFEST_MODELS_FILE" ] || [ ! -f "$INSTALL_MANIFEST_FILES_FILE" ]; then
         echo "❌ Manifest loader failed to generate normalized data files."
         return 1
     fi

@@ -83,7 +83,7 @@ install_custom_nodes() {
     done < "$INSTALL_MANIFEST_CUSTOM_NODES_FILE"
 
     if [ "${#custom_node_specs[@]}" -eq 0 ]; then
-        echo "No custom nodes defined in project manifest; skipping node installation."
+        echo "No custom nodes defined in install manifest; skipping node installation."
         return 0
     fi
 

@@ -52,8 +52,15 @@ if models is None:
 if not isinstance(models, list):
     fail("models must be a list")
 
+files = data.get("files")
+if files is None:
+    files = []
+if not isinstance(files, list):
+    fail("files must be a list")
+
 nodes_file = out_dir / "custom_nodes.tsv"
 models_file = out_dir / "models.tsv"
+files_file = out_dir / "files.tsv"
 
 with nodes_file.open("w", encoding="utf-8") as nf:
     for idx, item in enumerate(custom_nodes):
@@ -89,6 +96,26 @@ with models_file.open("w", encoding="utf-8") as mf:
             fail(f"models[{idx}].target must not contain tabs")
 
         mf.write(f"{target}\n")
+
+with files_file.open("w", encoding="utf-8") as ff:
+    for idx, item in enumerate(files):
+        if not isinstance(item, dict):
+            fail(f"files[{idx}] must be a mapping")
+
+        target = item.get("target")
+        if not isinstance(target, str) or not target.strip():
+            fail(f"files[{idx}] requires non-empty string field: target")
+
+        target = target.strip()
+        target_path = Path(target)
+        if target_path.is_absolute():
+            fail(f"files[{idx}].target must be relative to ComfyUI root, got: {target}")
+        if ".." in target_path.parts:
+            fail(f"files[{idx}].target must not contain '..', got: {target}")
+        if "\t" in target:
+            fail(f"files[{idx}].target must not contain tabs")
+
+        ff.write(f"{target}\n")
 PY
     then
         parse_rc=0
@@ -103,6 +130,7 @@ PY
 
     local nodes_file="$cleanup_tmp_dir/custom_nodes.tsv"
     local models_file="$cleanup_tmp_dir/models.tsv"
+    local files_file="$cleanup_tmp_dir/files.tsv"
 
     if [ -f "$nodes_file" ]; then
         local repo_dir
@@ -126,6 +154,18 @@ PY
                 rm -f "$model_path"
             fi
         done < "$models_file"
+    fi
+
+    if [ -f "$files_file" ]; then
+        local file_target
+        while IFS= read -r file_target; do
+            [ -n "$file_target" ] || continue
+            local file_path="$COMFYUI_DIR/$file_target"
+            if [ -f "$file_path" ]; then
+                echo "Removing old file: $file_target"
+                rm -f "$file_path"
+            fi
+        done < "$files_file"
     fi
 
     rm -rf "$cleanup_tmp_dir"

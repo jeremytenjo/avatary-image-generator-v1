@@ -14,6 +14,10 @@ custom_nodes:
 models:
   - url: 'https://huggingface.co/avatary-ai/files/resolve/main/ae.safetensors'
     target: 'models/vae/ae.safetensors'
+
+files:
+  - url: 'https://example.com/config.json'
+    target: 'custom_assets/config.json'
 ```
 
 ## Default Resources (All Projects)
@@ -32,6 +36,10 @@ custom_nodes:
 models:
   - url: 'https://huggingface.co/example/model/resolve/main/example.safetensors'
     target: 'models/checkpoints/example.safetensors'
+
+files:
+  - url: 'https://example.com/config.json'
+    target: 'custom_assets/config.json'
 ```
 
 ## Commands
@@ -43,10 +51,10 @@ models:
   Enter a new YAML URL and optionally clean resources from the previously selected project.
 
 - `bash add-project.sh`
-  Enter a new YAML URL and add missing nodes/models without removing existing resources.
+  Enter a new YAML URL and add missing nodes/models/files without removing existing resources.
 
 - `bash replace-project.sh`
   Enter a new YAML URL, remove previous project resources, then reinstall/start the selected project resources.
 
 - `bash update-nodes-and-models.sh`
-  Re-download the last saved YAML URL, refresh nodes/models, then restart ComfyUI.
+  Re-download the last saved YAML URL, refresh nodes/models/files, then restart ComfyUI.
