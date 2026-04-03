@@ -223,6 +223,64 @@ jobs:
             echo "ComfyUI version override: <none> (Dockerfile default)"
           fi
 
+      - name: Build image for smoke test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          load: true
+          provenance: false
+          sbom: false
+          tags: dynamic-comfyui:smoke-test
+          build-args: ${{ steps.comfyui.outputs.build_args }}
+          cache-from: type=gha,scope=${{ inputs.image_name }}
+          cache-to: type=gha,scope=${{ inputs.image_name }},mode=max
+
+      - name: Smoke test Jupyter and ComfyUI startup
+        run: |
+          set -euo pipefail
+
+          WORKSPACE_DIR="$(mktemp -d)"
+          touch "$WORKSPACE_DIR/.dynamic-comfyui_install_complete"
+
+          cleanup() {
+            docker rm -f dynamic-comfyui-smoke >/dev/null 2>&1 || true
+            rm -rf "$WORKSPACE_DIR"
+          }
+          trap cleanup EXIT
+
+          docker run -d \
+            --name dynamic-comfyui-smoke \
+            -p 8888:8888 \
+            -p 8188:8188 \
+            -v "$WORKSPACE_DIR:/workspace" \
+            dynamic-comfyui:smoke-test >/dev/null
+
+          wait_for_http_ok() {
+            local url="$1"
+            local label="$2"
+            local timeout_seconds="$3"
+            local elapsed=0
+
+            while [ "$elapsed" -lt "$timeout_seconds" ]; do
+              if curl --silent --fail --max-time 5 "$url" >/dev/null; then
+                echo "✅ ${label} is reachable at ${url}"
+                return 0
+              fi
+              sleep 2
+              elapsed=$((elapsed + 2))
+            done
+
+            echo "❌ Timed out waiting for ${label} at ${url}"
+            echo "Container logs:"
+            docker logs dynamic-comfyui-smoke || true
+            return 1
+          }
+
+          wait_for_http_ok "http://127.0.0.1:8888/lab" "JupyterLab" 90
+          wait_for_http_ok "http://127.0.0.1:8188/system_stats" "ComfyUI" 180
+
       - name: Build and push version tag
         uses: docker/build-push-action@v6
         with:
