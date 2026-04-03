@@ -19,9 +19,10 @@ load_install_manifest() {
         "$manifest_tmp_dir/default_files.tsv" \
         "$manifest_tmp_dir/project_files.tsv"
 
-    local default_nodes_manifest_path=""
-    if [ -n "${SCRIPT_DIR:-}" ]; then
-        default_nodes_manifest_path="$SCRIPT_DIR/default-resources.yaml"
+    local default_nodes_manifest_path
+    if ! default_nodes_manifest_path="$(resolve_default_resources_manifest "$manifest_tmp_dir")"; then
+        echo "❌ Failed to resolve default resources manifest."
+        return 1
     fi
 
     local handler_dir
@@ -54,7 +55,7 @@ load_install_manifest() {
     fi
 
     echo "Loaded install manifest: $INSTALL_MANIFEST_PATH"
-    if [ -n "$default_nodes_manifest_path" ] && [ -f "$default_nodes_manifest_path" ]; then
+    if [ -f "$default_nodes_manifest_path" ]; then
         echo "Loaded default resources manifest: $default_nodes_manifest_path"
     fi
     return 0

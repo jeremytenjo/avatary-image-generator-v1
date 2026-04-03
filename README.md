@@ -22,11 +22,15 @@ files:
 
 ## Default Resources (All Projects)
 
-Global default resources that should always install on `bash start.sh` are defined in:
+Global default resources are fetched from the URL configured in:
 
-- `default-resources.yaml`
+- `settings.json` (`default_resources_url`)
 
-Format:
+This lets you update defaults without rebuilding the image: edit the hosted YAML file at that URL.
+
+If the remote default manifest fails to download, install continues with project resources only (defaults are skipped for that run, with a warning).
+
+Manifest format:
 
 ```yaml
 custom_nodes:
