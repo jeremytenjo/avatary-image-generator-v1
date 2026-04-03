@@ -1,0 +1,5 @@
+custom_nodes:
+  - repo_dir: 'download_to_directory_extension'
+    repo: 'https://github.com/jeremytenjo/download_to_directory_extension.git'
+
+models: []

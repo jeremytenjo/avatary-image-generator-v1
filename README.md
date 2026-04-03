@@ -16,6 +16,24 @@ models:
     target: 'models/vae/ae.safetensors'
 ```
 
+## Default Resources (All Projects)
+
+Global default resources that should always install on `bash start.sh` are defined in:
+
+- `default-resources.yaml`
+
+Format:
+
+```yaml
+custom_nodes:
+  - repo_dir: 'example-node'
+    repo: 'https://github.com/example/example-node.git'
+
+models:
+  - url: 'https://huggingface.co/example/model/resolve/main/example.safetensors'
+    target: 'models/checkpoints/example.safetensors'
+```
+
 ## Commands
 
 - `bash start.sh`
