@@ -48,8 +48,8 @@ def read_files(tsv_path: str, source: str) -> list[dict]:
         parts = line.split("\t", 1)
         if len(parts) != 2:
             continue
-        _url, target = parts
-        items.append({"target": target, "kind": "file", "source": source})
+        url, target = parts
+        items.append({"target": target, "url": url, "kind": "file", "source": source})
     return items
 
 
@@ -69,7 +69,8 @@ def read_custom_nodes(tsv_path: str, source: str) -> list[dict]:
         repo_dir = parts[0].strip()
         if not repo_dir:
             continue
-        items.append({"target": f"custom_nodes/{repo_dir}", "kind": "custom_node", "source": source})
+        repo_url = parts[1].strip() if len(parts) == 2 else ""
+        items.append({"target": f"custom_nodes/{repo_dir}", "url": repo_url, "kind": "custom_node", "source": source})
     return items
 
 

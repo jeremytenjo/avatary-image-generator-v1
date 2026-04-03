@@ -126,6 +126,20 @@ serve_setup_instructions_page() {
       word-break: break-word;
       flex: 1;
     }
+    .target-link {
+      color: #ffffff;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .target-link:visited {
+      color: #ffffff;
+    }
+    .target-link:hover {
+      color: #ffffff;
+    }
+    .target-link:active {
+      color: #ffffff;
+    }
     .item-status {
       display: inline-flex;
       align-items: center;
@@ -213,6 +227,19 @@ serve_setup_instructions_page() {
       return map[raw] || "Pending";
     }
 
+    function safeHttpUrl(raw) {
+      if (typeof raw !== "string" || !raw.trim()) return "";
+      try {
+        const parsed = new URL(raw.trim());
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+          return parsed.href;
+        }
+      } catch (_err) {
+        // Ignore malformed URLs.
+      }
+      return "";
+    }
+
     function renderProgress(payload) {
       const statusEl = document.getElementById("progress-status");
       const summaryEl = document.getElementById("progress-summary");
@@ -265,9 +292,21 @@ serve_setup_instructions_page() {
 
         for (const item of group.items) {
           const li = document.createElement("li");
-          const target = document.createElement("span");
-          target.className = "target";
-          target.textContent = item.target || "(unknown target)";
+          const targetText = item.target || "(unknown target)";
+          const url = safeHttpUrl(item.url);
+          let target;
+          if (url) {
+            target = document.createElement("a");
+            target.href = url;
+            target.target = "_blank";
+            target.rel = "noopener noreferrer";
+            target.className = "target target-link";
+            target.textContent = targetText;
+          } else {
+            target = document.createElement("span");
+            target.className = "target";
+            target.textContent = targetText;
+          }
           if (isRunning && !item.checked) {
             const itemStatus = document.createElement("span");
             itemStatus.className = "item-status";

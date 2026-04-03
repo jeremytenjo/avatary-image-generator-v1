@@ -108,6 +108,20 @@
       word-break: break-word;
       flex: 1;
     }
+    .target-link {
+      color: #ffffff;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .target-link:visited {
+      color: #ffffff;
+    }
+    .target-link:hover {
+      color: #ffffff;
+    }
+    .target-link:active {
+      color: #ffffff;
+    }
     .item-status {
       display: inline-flex;
       align-items: center;
@@ -207,16 +221,16 @@
           default: {
             label: "Default resources",
             items: [
-              { target: "custom_nodes/download_to_directory_extension", checked: true },
-              { target: "models/checkpoints/default.safetensors", checked: false }
+              { target: "custom_nodes/download_to_directory_extension", url: "https://github.com/pythongosssss/ComfyUI-Custom-Scripts", checked: true },
+              { target: "models/checkpoints/default.safetensors", url: "https://huggingface.co/example/default/resolve/main/default.safetensors", checked: false }
             ]
           },
           project: {
             label: "Project manifest",
             items: [
-              { target: "custom_nodes/ComfyUI-Impact-Pack", checked: true },
-              { target: "models/loras/80082-v1.safetensors", checked: false },
-              { target: "models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors", checked: false }
+              { target: "custom_nodes/ComfyUI-Impact-Pack", url: "https://github.com/ltdrdata/ComfyUI-Impact-Pack", checked: true },
+              { target: "models/loras/80082-v1.safetensors", url: "https://huggingface.co/example/loras/resolve/main/80082-v1.safetensors", checked: false },
+              { target: "models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors", url: "https://huggingface.co/example/text-encoders/resolve/main/qwen_2.5_vl_7b_fp8_scaled.safetensors", checked: false }
             ]
           }
         }
@@ -227,14 +241,14 @@
           default: {
             label: "Default resources",
             items: [
-              { target: "custom_nodes/download_to_directory_extension", checked: true }
+              { target: "custom_nodes/download_to_directory_extension", url: "https://github.com/pythongosssss/ComfyUI-Custom-Scripts", checked: true }
             ]
           },
           project: {
             label: "Project manifest",
             items: [
-              { target: "custom_nodes/ComfyUI-Impact-Pack", checked: true },
-              { target: "models/loras/80082-v1.safetensors", checked: true }
+              { target: "custom_nodes/ComfyUI-Impact-Pack", url: "https://github.com/ltdrdata/ComfyUI-Impact-Pack", checked: true },
+              { target: "models/loras/80082-v1.safetensors", url: "https://huggingface.co/example/loras/resolve/main/80082-v1.safetensors", checked: true }
             ]
           }
         }
@@ -246,14 +260,14 @@
           default: {
             label: "Default resources",
             items: [
-              { target: "custom_nodes/download_to_directory_extension", checked: true }
+              { target: "custom_nodes/download_to_directory_extension", url: "https://github.com/pythongosssss/ComfyUI-Custom-Scripts", checked: true }
             ]
           },
           project: {
             label: "Project manifest",
             items: [
-              { target: "models/checkpoints/huslyorealismxl_v2.safetensors", checked: false },
-              { target: "models/ultralytics/segm/person_yolov8m-seg.pt", checked: false }
+              { target: "models/checkpoints/huslyorealismxl_v2.safetensors", url: "https://huggingface.co/example/checkpoints/resolve/main/huslyorealismxl_v2.safetensors", checked: false },
+              { target: "models/ultralytics/segm/person_yolov8m-seg.pt", url: "https://huggingface.co/example/ultralytics/resolve/main/person_yolov8m-seg.pt", checked: false }
             ]
           }
         }
@@ -285,6 +299,19 @@
         failed: "Failed",
       };
       return map[raw] || "Pending";
+    }
+
+    function safeHttpUrl(raw) {
+      if (typeof raw !== "string" || !raw.trim()) return "";
+      try {
+        const parsed = new URL(raw.trim());
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+          return parsed.href;
+        }
+      } catch (_err) {
+        // Ignore malformed URLs.
+      }
+      return "";
     }
 
     function groupCounts(group) {
@@ -334,9 +361,21 @@
         listEl.className = "checklist";
         for (const item of group.items || []) {
           const li = document.createElement("li");
-          const target = document.createElement("span");
-          target.className = "target";
-          target.textContent = item.target || "(unknown target)";
+          const targetText = item.target || "(unknown target)";
+          const url = safeHttpUrl(item.url);
+          let target;
+          if (url) {
+            target = document.createElement("a");
+            target.href = url;
+            target.target = "_blank";
+            target.rel = "noopener noreferrer";
+            target.className = "target target-link";
+            target.textContent = targetText;
+          } else {
+            target = document.createElement("span");
+            target.className = "target";
+            target.textContent = targetText;
+          }
           if (isRunning && !item.checked) {
             const itemStatus = document.createElement("span");
             itemStatus.className = "item-status";
