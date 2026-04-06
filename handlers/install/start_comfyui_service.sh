@@ -1,6 +1,13 @@
 # shellcheck shell=bash
 
 
+stop_existing_comfyui_service() {
+    local workspace_dir="$1"
+    comfy --workspace="$workspace_dir" stop >/dev/null 2>&1 || true
+    sleep 1
+}
+
+
 start_comfyui_service() {
     local start_ts
     start_ts=$(date +%s)
@@ -15,23 +22,11 @@ start_comfyui_service() {
 
     if is_http_reachable "$comfy_health_url" 2 5; then
         echo "ComfyUI is already running; restarting to load newly installed files and custom nodes."
-        comfy --workspace="$COMFYUI_DIR" stop >/dev/null 2>&1 || true
-        local -a existing_pids=()
-        while IFS= read -r pid; do
-            [ -n "$pid" ] && existing_pids+=("$pid")
-        done < <(ps -eo pid=,args= | awk '/[p]ython3 .*main\.py|[c]omfy .* launch/ {print $1}')
-
-        if [ "${#existing_pids[@]}" -gt 0 ]; then
-            kill "${existing_pids[@]}" 2>/dev/null || true
-            sleep 3
-            local pid
-            for pid in "${existing_pids[@]}"; do
-                if kill -0 "$pid" 2>/dev/null; then
-                    kill -9 "$pid" 2>/dev/null || true
-                fi
-            done
-        fi
+    else
+        echo "Ensuring no stale ComfyUI background service is running before launch."
     fi
+
+    stop_existing_comfyui_service "$COMFYUI_DIR"
 
     stop_setup_instructions_page
 

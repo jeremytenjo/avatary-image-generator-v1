@@ -18,6 +18,7 @@ if ! ensure_comfyui_workspace; then
 fi
 
 echo "Restarting ComfyUI..."
+stop_existing_comfyui_service "$COMFYUI_DIR"
 if ! start_comfyui_service; then
     echo "❌ Failed to restart ComfyUI."
     exit 1
