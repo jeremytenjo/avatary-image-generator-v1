@@ -54,7 +54,7 @@ start_comfyui_service() {
     until is_http_reachable "$comfy_health_url" 2 5; do
         if [ $counter -ge $max_wait ]; then
             echo "ComfyUI failed to become ready within ${max_wait}s."
-            comfy --workspace="$COMFYUI_DIR" stop >/dev/null 2>&1 || true
+            stop_existing_comfyui_service "$COMFYUI_DIR"
             return 1
         fi
 
