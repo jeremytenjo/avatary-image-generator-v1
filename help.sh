@@ -23,7 +23,7 @@ Dynamic ComfyUI Commands
   If the manifest sets require_huggingface_token=true, this command prompts for a token each run.
   Create a token at: https://huggingface.co/settings/tokens
 
-- bash restart-comfyui.sh
+- bash restart.sh
   Restart ComfyUI service.
 
 - bash help.sh

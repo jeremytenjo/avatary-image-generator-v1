@@ -25,7 +25,7 @@ Run this command in the terminal to add another project manifest without removin
 
 Run this command in the terminal to replace current project resources with a new project manifest `bash replace-project.sh`
 
-Run this command in the terminal to restart ComfyUI `bash restart-comfyui.sh`
+Run this command in the terminal to restart ComfyUI `bash restart.sh`
 
 Run this command in the terminal to update nodes and files (uses the last saved JSON URL) `bash update-nodes-and-models.sh`
 

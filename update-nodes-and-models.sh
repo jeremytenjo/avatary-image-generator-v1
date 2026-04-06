@@ -46,7 +46,7 @@ setup_progress_refresh
 print_installed_files_summary
 
 echo "Node and file refresh complete. Restarting ComfyUI..."
-if ! bash /restart-comfyui.sh; then
+if ! bash /restart.sh; then
     setup_progress_mark_failed "ComfyUI restart failed after refresh."
     echo "❌ Node/file refresh succeeded, but ComfyUI restart failed."
     exit 1
