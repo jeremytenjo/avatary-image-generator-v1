@@ -2,6 +2,10 @@
 
 Define your files and custom nodes in templates for easy ComfyUI environment setup on RunPod.
 
+## Usage
+
+run `dc start` and follow the prompts.
+
 ## Commands
 
 - `dc install`
