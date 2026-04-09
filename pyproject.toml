@@ -15,6 +15,7 @@ authors = [
 
 [project.scripts]
 dynamic-comfyui = "dynamic_comfyui_runtime.cli:main"
+dc = "dynamic_comfyui_runtime.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dynamic_comfyui_runtime"]

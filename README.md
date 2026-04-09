@@ -4,28 +4,28 @@ Define your files and custom nodes in templates for easy ComfyUI environment set
 
 ## Commands
 
-- `dynamic-comfyui install`
+- `dc install`
   Start Jupyter/runtime boot flow for the pod. This is the container entry command.
 
-- `dynamic-comfyui start`
+- `dc start`
   Enter a JSON URL (or press Enter for defaults-only), then install/start ComfyUI.
 
-- `dynamic-comfyui start-new-project`
+- `dc start-new-project`
   Enter a new JSON URL (or press Enter for defaults-only) and optionally clean resources from the previously selected project.
 
-- `dynamic-comfyui add-project`
+- `dc add-project`
   Enter a new JSON URL (or press Enter for defaults-only) and add missing nodes/files without removing existing resources.
 
-- `dynamic-comfyui replace-project`
+- `dc replace-project`
   Enter a new JSON URL (or press Enter for defaults-only), remove previous project resources, then reinstall/start the selected project resources.
 
-- `dynamic-comfyui update-nodes-and-models`
+- `dc update-nodes-and-models`
   Re-download the last saved JSON URL (or refresh defaults-only if URL is empty), refresh nodes/files, then restart ComfyUI. If the saved project manifest sets `require_huggingface_token: true`, you will be prompted for a token again.
 
-- `dynamic-comfyui restart`
+- `dc restart`
   Restart ComfyUI service.
 
-- `dynamic-comfyui help`
+- `dc help`
   Show the command help menu.
 
 ## Runtime Package (End to End)
@@ -36,15 +36,15 @@ Define your files and custom nodes in templates for easy ComfyUI environment set
 
 - Python runtime package: `dynamic_comfyui_runtime`.
 - Python runtime modules under `src/dynamic_comfyui_runtime/runtime/` (install flow, manifest loading/merge, downloads, progress, ComfyUI service control).
-- Python CLI entrypoint: `dynamic-comfyui` with subcommands for install/start/project operations.
+- Python CLI entrypoint: `dc` with subcommands for install/start/project operations.
 
 ### How startup uses the package
 
-On every container start, `dynamic-comfyui install` does:
+On every container start, `dc install` does:
 
 1. `pip install --upgrade` from:
-   `https://github.com/jeremytenjo/dynamic-comfyui/releases/latest/download/dynamic_comfyui_runtime-latest-py3-none-any.whl`
-2. Re-executes `dynamic-comfyui install` from the updated package.
+   `https://github.com/jeremytenjo/dc/releases/latest/download/dynamic_comfyui_runtime-latest-py3-none-any.whl`
+2. Re-executes `dc install` from the updated package.
 3. Runs the install/startup flow through Python runtime modules (no shell handler sourcing).
 4. If package update fails, continues using the already-installed package version.
 
@@ -76,8 +76,8 @@ What this script does:
 
 ### Runtime update behavior in pods
 
-- New pods pull the latest runtime wheel during `dynamic-comfyui install`.
-- Existing running pods get the new runtime on next pod start cycle (when `dynamic-comfyui install` runs again).
+- New pods pull the latest runtime wheel during `dc install`.
+- Existing running pods get the new runtime on next pod start cycle (when `dc install` runs again).
 - If GitHub is unreachable or install fails, startup continues with the currently installed Python runtime package.
 
 ## Project File Format
