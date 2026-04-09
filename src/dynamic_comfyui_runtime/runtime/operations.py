@@ -6,6 +6,8 @@ from pathlib import Path
 
 from .common import ensure_dir, now_epoch, require_tools, utc_timestamp
 from .installer import (
+    FileInstallFailure,
+    NodeInstallFailure,
     install_custom_nodes,
     install_files,
     print_custom_nodes_summary,
@@ -151,11 +153,30 @@ def _load_manifest_context(ctx: RuntimeContext, project_manifest_path: Path) -> 
     return merged, hf_token
 
 
-def _print_resource_summary(merged: MergedManifest, custom_nodes_dir: Path, comfyui_dir: Path) -> None:
+def _print_failures(node_failures: list[NodeInstallFailure], file_failures: list[FileInstallFailure]) -> None:
+    if node_failures:
+        print("❌ Failed custom node installs:")
+        for failure in node_failures:
+            print(f" - {failure.repo_dir} [{failure.step}] ({failure.error})")
+
+    if file_failures:
+        print("❌ Failed file downloads:")
+        for failure in file_failures:
+            print(f" - {failure.target} ({failure.error})")
+
+
+def _print_resource_summary(
+    merged: MergedManifest,
+    custom_nodes_dir: Path,
+    comfyui_dir: Path,
+    node_failures: list[NodeInstallFailure],
+    file_failures: list[FileInstallFailure],
+) -> None:
     print_custom_nodes_summary("✅ Installed custom nodes (default resources):", merged.default_custom_nodes, custom_nodes_dir)
     print_custom_nodes_summary("✅ Installed custom nodes (project manifest):", merged.project_custom_nodes, custom_nodes_dir)
     print_files_summary("✅ Installed files (default resources):", merged.default_files, comfyui_dir)
     print_files_summary("✅ Installed files (project manifest):", merged.project_files, comfyui_dir)
+    _print_failures(node_failures, file_failures)
 
 
 def run_comfyui_install_flow(ctx: RuntimeContext, project_manifest_path: Path) -> None:
@@ -176,16 +197,20 @@ def run_comfyui_install_flow(ctx: RuntimeContext, project_manifest_path: Path) -
     enable_manager_gui(comfyui_dir)
 
     print("Ensuring required custom nodes are installed...")
-    install_custom_nodes(merged.merged_custom_nodes, custom_nodes_dir, on_progress=lambda: mark_running(merged, comfyui_dir))
+    node_failures = install_custom_nodes(
+        merged.merged_custom_nodes, custom_nodes_dir, on_progress=lambda: mark_running(merged, comfyui_dir)
+    )
 
     print("Installing required files...")
-    install_files(merged.merged_files, comfyui_dir, hf_token=hf_token, on_progress=lambda: mark_running(merged, comfyui_dir))
+    file_failures = install_files(
+        merged.merged_files, comfyui_dir, hf_token=hf_token, on_progress=lambda: mark_running(merged, comfyui_dir)
+    )
 
     write_install_sentinel(network_volume, comfyui_dir)
     startup_lines = start_comfyui_service(comfyui_dir, network_volume, install_start_ts=ctx.install_start_ts)
 
     mark_done(merged, comfyui_dir)
-    _print_resource_summary(merged, custom_nodes_dir, comfyui_dir)
+    _print_resource_summary(merged, custom_nodes_dir, comfyui_dir, node_failures, file_failures)
     for line in startup_lines:
         print(line)
 

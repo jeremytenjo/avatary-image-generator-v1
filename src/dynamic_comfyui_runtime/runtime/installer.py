@@ -1,17 +1,34 @@
 from __future__ import annotations
 
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 
 from .common import download_file, run
 from .manifests import CustomNode, FileSpec
 
 
-def install_custom_nodes(custom_nodes: list[CustomNode], custom_nodes_dir: Path, *, on_progress: callable | None = None) -> None:
+@dataclass(frozen=True)
+class NodeInstallFailure:
+    repo_dir: str
+    step: str
+    error: str
+
+
+@dataclass(frozen=True)
+class FileInstallFailure:
+    target: str
+    error: str
+
+
+def install_custom_nodes(
+    custom_nodes: list[CustomNode], custom_nodes_dir: Path, *, on_progress: callable | None = None
+) -> list[NodeInstallFailure]:
     if not custom_nodes:
         print("No custom nodes defined in install manifest; skipping node installation.")
-        return
+        return []
 
+    failures: list[NodeInstallFailure] = []
     for idx, node in enumerate(custom_nodes, start=1):
         print(f"[{idx}/{len(custom_nodes)}] Ensuring git node {node.repo_dir}")
         node_path = custom_nodes_dir / node.repo_dir
@@ -23,18 +40,40 @@ def install_custom_nodes(custom_nodes: list[CustomNode], custom_nodes_dir: Path,
 
         if node_path.exists():
             shutil.rmtree(node_path)
-        run(["git", "clone", node.repo, str(node_path)])
+        try:
+            run(["git", "clone", node.repo, str(node_path)])
+        except Exception as exc:
+            failures.append(NodeInstallFailure(repo_dir=node.repo_dir, step="git clone", error=str(exc)))
+            print(f"❌ Failed to clone custom node {node.repo_dir}: {exc}")
+            if on_progress:
+                on_progress()
+            continue
 
         requirements = node_path / "requirements.txt"
         if requirements.is_file():
-            run(["python3", "-m", "pip", "install", "--no-cache-dir", "-r", str(requirements)])
+            try:
+                run(["python3", "-m", "pip", "install", "--no-cache-dir", "-r", str(requirements)])
+            except Exception as exc:
+                failures.append(NodeInstallFailure(repo_dir=node.repo_dir, step="requirements install", error=str(exc)))
+                print(f"❌ Failed to install requirements for {node.repo_dir}: {exc}")
+                if on_progress:
+                    on_progress()
+                continue
 
         install_py = node_path / "install.py"
         if install_py.is_file():
-            run(["python3", "install.py"], cwd=node_path)
+            try:
+                run(["python3", "install.py"], cwd=node_path)
+            except Exception as exc:
+                failures.append(NodeInstallFailure(repo_dir=node.repo_dir, step="install.py", error=str(exc)))
+                print(f"❌ Failed to run install.py for {node.repo_dir}: {exc}")
+                if on_progress:
+                    on_progress()
+                continue
 
         if on_progress:
             on_progress()
+    return failures
 
 
 def install_files(
@@ -43,12 +82,12 @@ def install_files(
     *,
     hf_token: str | None,
     on_progress: callable | None = None,
-) -> None:
+) -> list[FileInstallFailure]:
     if not files:
         print("No files defined in install manifest; skipping file installation.")
-        return
+        return []
 
-    failures = 0
+    failures: list[FileInstallFailure] = []
     for idx, file_spec in enumerate(files, start=1):
         target_path = comfyui_dir / file_spec.target
         print(f"[{idx}/{len(files)}] Processing {file_spec.target}")
@@ -58,13 +97,12 @@ def install_files(
             try:
                 download_file(file_spec.url, target_path, hf_token=hf_token)
             except Exception as exc:
-                failures += 1
+                failures.append(FileInstallFailure(target=file_spec.target, error=str(exc)))
                 print(f"❌ Failed to download {file_spec.target}: {exc}")
         if on_progress:
             on_progress()
 
-    if failures:
-        raise RuntimeError(f"{failures} file download task(s) failed")
+    return failures
 
 
 def remove_project_resources(node_dirs: list[str], file_targets: list[str], custom_nodes_dir: Path, comfyui_dir: Path) -> None:
