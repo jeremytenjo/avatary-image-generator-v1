@@ -18,4 +18,3 @@ ComfyUI/**
 .npmrc
 .publish-dockerhub.json
 package-lock.json
-README.md
