@@ -19,11 +19,14 @@ def run(
     check: bool = True,
     quiet: bool = False,
     timeout: int | None = None,
+    input_text: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     kwargs: dict[str, object] = {"cwd": str(cwd) if cwd else None, "text": True}
     if quiet:
         kwargs["stdout"] = subprocess.PIPE
         kwargs["stderr"] = subprocess.PIPE
+    if input_text is not None:
+        kwargs["input"] = input_text
     try:
         completed = subprocess.run(cmd, timeout=timeout, **kwargs)  # noqa: S603
     except subprocess.TimeoutExpired as exc:
