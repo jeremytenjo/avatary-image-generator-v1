@@ -176,10 +176,11 @@ def resolve_runpod_proxy_url(target_port: int) -> str | None:
     return None
 
 
-def start_comfyui_service(comfyui_dir: Path, network_volume: Path, install_start_ts: int | None = None) -> None:
+def start_comfyui_service(comfyui_dir: Path, network_volume: Path, install_start_ts: int | None = None) -> list[str]:
     now = int(time.time())
     metric_start = install_start_ts if install_start_ts and install_start_ts <= now else now
     health_url = "http://127.0.0.1:8188/system_stats"
+    startup_lines: list[str] = []
 
     if is_http_reachable(health_url):
         print("ComfyUI is already running; restarting to load newly installed files and custom nodes.")
@@ -193,7 +194,7 @@ def start_comfyui_service(comfyui_dir: Path, network_volume: Path, install_start
     _ensure_manager_runtime_ready(comfyui_dir, network_volume)
 
     print("Starting ComfyUI via comfy-cli")
-    run(
+    launch = run(
         [
             "comfy",
             "--workspace",
@@ -207,7 +208,12 @@ def start_comfyui_service(comfyui_dir: Path, network_volume: Path, install_start
             "--disable-cuda-malloc",
         ],
         cwd=comfyui_dir,
+        quiet=True,
     )
+    for line in ((launch.stdout or "") + "\n" + (launch.stderr or "")).splitlines():
+        msg = line.strip()
+        if msg.startswith("ComfyUI is successfully launched in the background.") or msg.startswith("To see the GUI go to:"):
+            startup_lines.append(msg)
 
     max_wait = 90
     waited = 0
@@ -216,15 +222,15 @@ def start_comfyui_service(comfyui_dir: Path, network_volume: Path, install_start
             elapsed = int(time.time()) - metric_start
             minutes, seconds = divmod(elapsed, 60)
             if minutes:
-                print(f"ComfyUI is UP ({minutes}m {seconds}s)")
+                startup_lines.append(f"ComfyUI is UP ({minutes}m {seconds}s)")
             else:
-                print(f"ComfyUI is UP ({elapsed}s)")
+                startup_lines.append(f"ComfyUI is UP ({elapsed}s)")
             runpod_url = resolve_runpod_proxy_url(8188)
             if runpod_url:
-                print(f"ComfyUI GUI: {runpod_url}")
+                startup_lines.append(f"ComfyUI GUI: {runpod_url}")
             else:
-                print("ComfyUI GUI: http://127.0.0.1:8188")
-            return
+                startup_lines.append("ComfyUI GUI: http://127.0.0.1:8188")
+            return startup_lines
         print("ComfyUI starting...")
         time.sleep(2)
         waited += 2

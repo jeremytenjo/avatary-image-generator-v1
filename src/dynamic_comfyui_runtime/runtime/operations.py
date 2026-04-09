@@ -182,12 +182,12 @@ def run_comfyui_install_flow(ctx: RuntimeContext, project_manifest_path: Path) -
     install_files(merged.merged_files, comfyui_dir, hf_token=hf_token, on_progress=lambda: mark_running(merged, comfyui_dir))
 
     write_install_sentinel(network_volume, comfyui_dir)
-    start_comfyui_service(comfyui_dir, network_volume, install_start_ts=ctx.install_start_ts)
+    startup_lines = start_comfyui_service(comfyui_dir, network_volume, install_start_ts=ctx.install_start_ts)
 
     mark_done(merged, comfyui_dir)
     _print_resource_summary(merged, custom_nodes_dir, comfyui_dir)
-    print("✅ Installation complete")
-    print("🚀 ComfyUI is running on port 8188")
+    for line in startup_lines:
+        print(line)
 
 
 def cmd_install(ctx: RuntimeContext) -> None:
@@ -207,7 +207,9 @@ def cmd_install(ctx: RuntimeContext) -> None:
         print("Install marker found. Starting ComfyUI...")
         try:
             ensure_comfy_cli_ready(network_volume)
-            start_comfyui_service(comfyui_dir, network_volume)
+            startup_lines = start_comfyui_service(comfyui_dir, network_volume)
+            for line in startup_lines:
+                print(line)
         except Exception as exc:
             print(f"Failed to auto-start ComfyUI. Run 'dynamic-comfyui start' from the Jupyter terminal. ({exc})")
 
@@ -324,7 +326,9 @@ def cmd_restart(ctx: RuntimeContext) -> None:
     ensure_comfy_cli_ready(network_volume)
     print("Restarting ComfyUI...")
     stop_comfyui_service(comfyui_dir)
-    start_comfyui_service(comfyui_dir, network_volume)
+    startup_lines = start_comfyui_service(comfyui_dir, network_volume)
+    for line in startup_lines:
+        print(line)
     print("ComfyUI restart complete.")
 
 
