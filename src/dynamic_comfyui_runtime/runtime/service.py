@@ -218,14 +218,15 @@ def start_comfyui_service(comfyui_dir: Path, network_volume: Path, install_start
             elapsed = int(time.time()) - metric_start
             minutes, seconds = divmod(elapsed, 60)
             if minutes:
-                startup_lines.append(f"ComfyUI is UP ({minutes}m {seconds}s)")
+                startup_time = f"{minutes}m {seconds}s"
             else:
-                startup_lines.append(f"ComfyUI is UP ({elapsed}s)")
+                startup_time = f"{elapsed}s"
             runpod_url = resolve_runpod_proxy_url(8188)
             if runpod_url:
-                startup_lines.append(f"ComfyUI GUI: {runpod_url}")
+                gui_url = runpod_url
             else:
-                startup_lines.append("ComfyUI GUI: http://127.0.0.1:8188")
+                gui_url = "http://127.0.0.1:8188"
+            startup_lines.append(f"ComfyUI running: {gui_url} ({startup_time})")
             return startup_lines
         print("ComfyUI starting...")
         time.sleep(2)
