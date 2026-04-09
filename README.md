@@ -50,27 +50,6 @@ Define project manifests (custom nodes + files) for repeatable ComfyUI setup on 
 4. Runs install/startup through Python runtime modules.
 5. If package update fails, continues using the already-installed package version.
 
-### Release Runtime Wheel
-
-Prerequisites:
-
-- `gh` CLI installed
-- `gh auth login` completed
-- `python3` available
-
-Release steps:
-
-1. Bump `[project].version` in `pyproject.toml`.
-2. Run:
-   `npm run deploy:patch` (or `deploy:minor` / `deploy:major`)
-
-What `deploy:*` does:
-
-- Requires a clean git tree.
-- Bumps version in `pyproject.toml`, commits, and pushes.
-- Builds wheel assets and publishes to release tag `runtime-v<version>`.
-- Writes release notes with commit summary from previous runtime tag to `HEAD`.
-
 ### Updating Runtime In Pods
 
 - New pods pull the latest runtime wheel during `dc install`.
