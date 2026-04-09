@@ -51,33 +51,33 @@ def _help_text() -> str:
 - ComfyUI core version
   Managed at image build time via GitHub Action inputs (upgrade_comfyui/comfyui_version), not project JSON.
 
-- dynamic-comfyui install
+- dc install
   Boot runtime services for the pod (Jupyter + setup page + optional auto-start).
 
-- dynamic-comfyui start
+- dc start
   Enter a direct JSON URL (or press Enter for defaults-only) and install/start ComfyUI.
 
-- dynamic-comfyui start-new-project
+- dc start-new-project
   Enter a new JSON URL (or press Enter for defaults-only) and optionally clean previous project resources.
 
-- dynamic-comfyui add-project
+- dc add-project
   Enter a new JSON URL (or press Enter for defaults-only) and add missing nodes/files (keeps existing resources).
 
-- dynamic-comfyui replace-project
+- dc replace-project
   Enter a new JSON URL (or press Enter for defaults-only), remove previous project resources, then install/start new resources.
 
-- dynamic-comfyui update-nodes-and-models
+- dc update-nodes-and-models
   Re-download the last saved JSON URL (or refresh defaults-only if URL is empty), refresh nodes/files, and restart ComfyUI.
   If the manifest sets require_huggingface_token=true, this command prompts for a token each run.
   Create a token at: https://huggingface.co/settings/tokens
 
-- dynamic-comfyui restart
+- dc restart
   Restart ComfyUI service.
 
-- dynamic-comfyui update-dc
+- dc update-dc
   Update dynamic-comfyui runtime package to latest release wheel.
 
-- dynamic-comfyui help
+- dc help
   Show this help menu.
 """
 
