@@ -2,6 +2,8 @@
   "default_resources_url": "https://github.com/jeremytenjo/dynamic-comfyui/blob/main/default-resources.json",
   "scripts": {
     "setup-page-preview": "python3 -m http.server 8189 --directory src/dynamic_comfyui_runtime/templates",
-    "deploy:runtime-package": "bash scripts/release-runtime-package.sh"
+    "deploy:patch": "bash scripts/deploy-runtime-package.sh patch",
+    "deploy:minor": "bash scripts/deploy-runtime-package.sh minor",
+    "deploy:major": "bash scripts/deploy-runtime-package.sh major"
   }
 }
