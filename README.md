@@ -64,6 +64,12 @@ Release flow:
 2. Run:
    `npm run deploy:patch` (or `deploy:minor` / `deploy:major`)
 
+#### Deploy Script Behavior
+
+- `deploy:*` enforces a clean git working tree before it runs.
+- `deploy:*` bumps `pyproject.toml` version, commits that change, and pushes the current branch.
+- After push succeeds, it publishes the runtime release assets for the new version.
+
 What this script does:
 
 - Builds the wheel from `pyproject.toml`.
