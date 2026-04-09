@@ -1,30 +1,31 @@
 # Dynamic ComfyUI Templates for RunPod
 
-Define your files and custom nodes in templates for easy ComfyUI environment setup on RunPod.
+Define project manifests (custom nodes + files) for repeatable ComfyUI setup on RunPod.
 
-## Usage
+## Quick Start
 
-run `dc start` and follow the prompts.
+Run `dc start` and follow the prompt for your project JSON URL.
 
 ## Commands
 
 - `dc install`
-  Start Jupyter/runtime boot flow for the pod. This is the container entry command.
+  Start Jupyter + runtime boot flow (container entry command).
 
 - `dc start`
   Enter a JSON URL (or press Enter for defaults-only), then install/start ComfyUI.
 
 - `dc start-new-project`
-  Enter a new JSON URL (or press Enter for defaults-only) and optionally clean resources from the previously selected project.
+  Enter a new JSON URL (or press Enter for defaults-only) and optionally remove previous project resources.
 
 - `dc add-project`
-  Enter a new JSON URL (or press Enter for defaults-only) and add missing nodes/files without removing existing resources.
+  Enter a new JSON URL (or press Enter for defaults-only) and add missing nodes/files only.
 
 - `dc replace-project`
-  Enter a new JSON URL (or press Enter for defaults-only), remove previous project resources, then reinstall/start the selected project resources.
+  Enter a new JSON URL (or press Enter for defaults-only), remove previous project resources, then reinstall/start.
 
 - `dc update-nodes-and-models`
-  Re-download the last saved JSON URL (or refresh defaults-only if URL is empty), refresh nodes/files, then restart ComfyUI. If the saved project manifest sets `require_huggingface_token: true`, you will be prompted for a token again.
+  Re-download last saved project manifest (or defaults-only if empty), refresh nodes/files, then restart ComfyUI.
+  If `require_huggingface_token: true`, you will be prompted for a token again.
 
 - `dc restart`
   Restart ComfyUI service.
@@ -35,29 +36,19 @@ run `dc start` and follow the prompts.
 - `dc help`
   Show the command help menu.
 
-## Runtime Package (End to End)
+## Runtime Architecture
 
-`ComfyUI` core is still managed by Docker/GitHub Actions. Runtime logic is now implemented in Python modules, packaged as a pip wheel, and auto-updated at pod startup.
+`ComfyUI` core is managed by the Docker image. Runtime behavior is managed by the Python wheel (`dynamic-comfyui-runtime`) and loaded by `dc`.
 
-### What the runtime package contains
-
-- Python runtime package: `dynamic_comfyui_runtime`.
-- Python runtime modules under `src/dynamic_comfyui_runtime/runtime/` (install flow, manifest loading/merge, downloads, progress, ComfyUI service control).
-- Python CLI entrypoint: `dc` with subcommands for install/start/project operations.
-
-### How startup uses the package
-
-On every container start, `dc install` does:
+### Startup Update Flow (`dc install`)
 
 1. Resolves the latest runtime release from GitHub Releases API and selects the versioned wheel asset.
 2. Runs `pip install --upgrade` using that versioned wheel URL.
 3. Re-executes `dc install` from the updated package.
-4. Runs the install/startup flow through Python runtime modules (no shell handler sourcing).
+4. Runs install/startup through Python runtime modules.
 5. If package update fails, continues using the already-installed package version.
 
-This keeps one Python command surface while allowing runtime updates without rebuilding the Docker image.
-
-### Release a new runtime package
+### Release Runtime Wheel
 
 Prerequisites:
 
@@ -65,34 +56,23 @@ Prerequisites:
 - `gh auth login` completed
 - `python3` available
 
-Release flow:
+Release steps:
 
 1. Bump `[project].version` in `pyproject.toml`.
 2. Run:
    `npm run deploy:patch` (or `deploy:minor` / `deploy:major`)
 
-#### Deploy Script Behavior
+What `deploy:*` does:
+- Requires a clean git tree.
+- Bumps version in `pyproject.toml`, commits, and pushes.
+- Builds wheel assets and publishes to release tag `runtime-v<version>`.
+- Writes release notes with commit summary from previous runtime tag to `HEAD`.
 
-- `deploy:*` enforces a clean git working tree before it runs.
-- `deploy:*` bumps `pyproject.toml` version, commits that change, and pushes the current branch.
-- After push succeeds, it publishes the runtime release assets for the new version.
-
-What this script does:
-
-- Builds the wheel from `pyproject.toml`.
-- Creates two assets:
-  - Versioned wheel (for example `dynamic_comfyui_runtime-0.1.0-py3-none-any.whl`)
-  - Stable alias: `dynamic_comfyui_runtime-latest-py3-none-any.whl`
-- Publishes assets to GitHub Release tag: `runtime-v<version>`.
-  - Creates the release if it does not exist.
-  - Writes release notes with a commit summary from the previous runtime tag to current `HEAD`.
-  - Uploads with overwrite if it already exists.
-
-### Runtime update behavior in pods
+### Updating Runtime In Pods
 
 - New pods pull the latest runtime wheel during `dc install`.
 - Existing running pods get the new runtime on next pod start cycle (when `dc install` runs again).
-- You can also force a manual runtime package update in a running pod with `dc update-dc`.
+- You can force an immediate update in a running pod with `dc update-dc`.
 - If GitHub is unreachable or install fails, startup continues with the currently installed Python runtime package.
 
 ### Debug Runtime In Jupyter Pod (No Docker Rebuild)
@@ -104,10 +84,7 @@ Use this workflow for runtime Python changes (`src/dynamic_comfyui_runtime/**`, 
    `npm run deploy:patch` (or `deploy:minor` / `deploy:major`).
 3. In the pod, open a Jupyter terminal and update runtime:
    `dc update-dc`
-4. Re-run the flow you are testing, for example:
-   - `dc start`
-   - `dc update-nodes-and-models`
-   - `dc restart`
+4. Re-run the command you are testing (for example `dc start`, `dc update-nodes-and-models`, or `dc restart`).
 5. Iterate: make another code patch, publish again, run `dc update-dc` again in the same pod.
 
 If the pod is on an older build where `dc update-dc` fails with an invalid wheel filename (`...-latest-py3-none-any.whl`), run this one-time bootstrap update:
@@ -135,7 +112,7 @@ After that bootstrap, `dc update-dc` will work for future updates.
 ### When Docker Rebuild Is Required
 
 - Do **not** rebuild/publish Docker images for normal runtime Python changes.
-- Rebuild/publish Docker images only when changing ComfyUI core/image-level dependencies (base image, system packages, Python runtime in image, or pinned ComfyUI core itself).
+- Rebuild/publish Docker images only when changing ComfyUI core or image-level dependencies (base image, apt/system packages, Python runtime in image, pinned ComfyUI core).
 
 ## Project File Format
 
@@ -163,7 +140,7 @@ Example (`<URL>.json`):
 }
 ```
 
-### Optional Hugging Face Token Requirement
+### Optional Hugging Face Token
 
 Project manifests can require a Hugging Face token for file downloads:
 
@@ -179,7 +156,7 @@ Project manifests can require a Hugging Face token for file downloads:
 }
 ```
 
-Behavior when `require_huggingface_token` is `true`:
+When `require_huggingface_token` is `true`:
 
 - The installer prompts for a Hugging Face token before installation.
 - If the token is empty, installation stops immediately.
@@ -194,28 +171,6 @@ Global default resources are fetched from the URL configured in:
 
 This lets you update defaults without rebuilding the image: edit the hosted JSON file at that URL.
 
-If the remote default manifest fails to download, install continues with project resources only (defaults are skipped for that run, with a warning).
+If the remote default manifest fails to download, install continues with project resources only (defaults skipped for that run, with a warning).
 
-Manifest format:
-
-```json
-{
-  "require_huggingface_token": false,
-  "custom_nodes": [
-    {
-      "repo_dir": "example-node",
-      "repo": "https://github.com/example/example-node.git"
-    }
-  ],
-  "files": [
-    {
-      "url": "https://huggingface.co/example/model/resolve/main/example.safetensors",
-      "target": "models/checkpoints/example.safetensors"
-    },
-    {
-      "url": "https://example.com/config.json",
-      "target": "custom_assets/config.json"
-    }
-  ]
-}
-```
+Default resources use the same schema as the project manifest format above.
