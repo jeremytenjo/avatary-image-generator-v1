@@ -53,6 +53,17 @@ def default_resources_url_from_package_json(package_json_path: Path) -> str:
     return normalize_github_blob_url(value.strip())
 
 
+def _local_default_manifest_path(package_json_path: Path) -> Path | None:
+    candidates = [
+        package_json_path.parent / "default-resources.json",
+        Path("/default-resources.json"),
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 def _parse_manifest(path: Path) -> ManifestData:
     data = read_json(path)
     require_value = data.get("require_huggingface_token", False)
@@ -151,7 +162,11 @@ def resolve_default_manifest(package_json_path: Path, temp_dir: Path) -> Path:
                 return candidate
         except Exception as exc:
             print(f"Warning: failed to download remote default resources manifest: {default_url} ({exc})")
-            print("Warning: continuing with project resources only (default resources skipped for this run).")
+    local_manifest = _local_default_manifest_path(package_json_path)
+    if local_manifest is not None:
+        print(f"Loaded local default resources manifest: {local_manifest}")
+        return local_manifest
+    print("Warning: no default resources manifest available; continuing with project resources only.")
     empty = temp_dir / "default-resources-empty.json"
     empty.write_text('{"custom_nodes": [], "files": []}\n', encoding="utf-8")
     return empty
