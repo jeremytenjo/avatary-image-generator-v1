@@ -7,6 +7,7 @@ from pathlib import Path
 from .runtime.operations import (
     RuntimeContext,
     cmd_add_project,
+    cmd_install_deps,
     cmd_install,
     cmd_replace_project,
     cmd_restart,
@@ -54,6 +55,9 @@ def _help_text() -> str:
 - dc install
   Boot runtime services for the pod (Jupyter + setup page + optional auto-start).
 
+- dc install-deps
+  Enter a direct JSON URL (or press Enter for defaults-only) and install custom nodes/files only.
+
 - dc start
   Enter a direct JSON URL (or press Enter for defaults-only) and install/start ComfyUI.
 
@@ -88,6 +92,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     for cmd in (
         "install",
+        "install-deps",
         "start",
         "start-new-project",
         "add-project",
@@ -118,6 +123,7 @@ def main() -> None:
 
     ctx = _context()
     handlers = {
+        "install-deps": cmd_install_deps,
         "start": cmd_start,
         "start-new-project": cmd_start_new_project,
         "add-project": cmd_add_project,

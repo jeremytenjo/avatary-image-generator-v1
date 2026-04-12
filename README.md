@@ -2,6 +2,15 @@
 
 Define project manifests (custom nodes + files) for repeatable ComfyUI setup on RunPod.
 
+## Minimal Setup (Any Pod)
+
+```bash
+python3 -m pip install --no-cache-dir --upgrade \
+  "git+https://github.com/jeremytenjo/dynamic-comfyui.git"
+
+dc install-deps
+```
+
 ## Quick Start
 
 1. Start project with the [Dynamic ComfyUI](https://console.runpod.io/deploy?template=8b30tcbyze) Runpod template.
@@ -12,6 +21,10 @@ Define project manifests (custom nodes + files) for repeatable ComfyUI setup on 
 
 - `dc install`
   Start Jupyter + runtime boot flow (container entry command).
+
+- `dc install-deps`
+  Enter a JSON URL (or press Enter for defaults-only), then install custom nodes/files only.
+  This command does not start Jupyter or ComfyUI.
 
 - `dc start`
   Enter a JSON URL (or press Enter for defaults-only), then install/start ComfyUI.

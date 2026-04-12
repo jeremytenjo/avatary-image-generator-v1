@@ -78,6 +78,8 @@ Run this command in the terminal to restart ComfyUI `dynamic-comfyui restart`
 
 Run this command in the terminal to update nodes and files (uses the last saved JSON URL) `dynamic-comfyui update-nodes-and-models`
 
+Run this command in the terminal to install custom nodes/files only. First step: enter your direct JSON URL `dynamic-comfyui install-deps`
+
 Run this command in the terminal to update the dynamic-comfyui runtime package to latest `dynamic-comfyui update-dc`
 
 Run this command in the terminal to list available commands `dynamic-comfyui help`
@@ -215,6 +217,36 @@ def run_comfyui_install_flow(ctx: RuntimeContext, project_manifest_path: Path) -
         print(line)
 
 
+def run_dependency_install_flow(ctx: RuntimeContext, project_manifest_path: Path) -> None:
+    ctx.install_start_ts = now_epoch()
+    network_volume = set_network_volume_default(ctx.network_volume)
+    comfyui_dir, custom_nodes_dir = ensure_comfyui_workspace(network_volume)
+    set_model_directories(comfyui_dir)
+    require_tools(["python3", "git"])
+
+    merged, hf_token = _load_manifest_context(ctx, project_manifest_path)
+    mark_running(merged, comfyui_dir)
+
+    print("Ensuring ComfyUI core workspace is installed...")
+    ensure_comfy_cli_ready(network_volume)
+    verify_comfyui_core_workspace(comfyui_dir)
+    enable_manager_gui(comfyui_dir)
+
+    print("Ensuring required custom nodes are installed...")
+    node_failures = install_custom_nodes(
+        merged.merged_custom_nodes, custom_nodes_dir, on_progress=lambda: mark_running(merged, comfyui_dir)
+    )
+
+    print("Installing required files...")
+    file_failures = install_files(
+        merged.merged_files, comfyui_dir, hf_token=hf_token, on_progress=lambda: mark_running(merged, comfyui_dir)
+    )
+
+    mark_done(merged, comfyui_dir)
+    _print_resource_summary(merged, custom_nodes_dir, comfyui_dir, node_failures, file_failures)
+    print("Dependency installation complete. ComfyUI was not started.")
+
+
 def cmd_install(ctx: RuntimeContext) -> None:
     configure_process_env()
     network_volume = prepare_network_volume_and_start_jupyter(ctx.network_volume)
@@ -259,6 +291,19 @@ def cmd_start(ctx: RuntimeContext) -> None:
     except Exception as exc:
         comfyui_dir, _ = ensure_comfyui_workspace(network_volume)
         mark_failed(None, comfyui_dir, f"Installation failed. {exc}")
+        raise
+
+
+def cmd_install_deps(ctx: RuntimeContext) -> None:
+    configure_process_env()
+    network_volume = set_network_volume_default(ctx.network_volume)
+    manifest_path, source_url = prompt_and_prepare_project_manifest(network_volume)
+    _save_selected_project(network_volume, manifest_path, source_url)
+    try:
+        run_dependency_install_flow(ctx, manifest_path)
+    except Exception as exc:
+        comfyui_dir, _ = ensure_comfyui_workspace(network_volume)
+        mark_failed(None, comfyui_dir, f"Dependency installation failed. {exc}")
         raise
 
 
