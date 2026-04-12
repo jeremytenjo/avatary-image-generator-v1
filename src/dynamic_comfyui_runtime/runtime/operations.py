@@ -239,7 +239,7 @@ def run_dependency_install_flow(ctx: RuntimeContext, project_manifest_path: Path
     print("Ensuring ComfyUI core workspace is installed...")
     ensure_comfy_cli_ready(network_volume)
     verify_comfyui_core_workspace(comfyui_dir)
-    enable_manager_gui(comfyui_dir)
+    enable_manager_gui(comfyui_dir, quiet=True)
 
     print("Ensuring required custom nodes are installed...")
     node_failures = install_custom_nodes(

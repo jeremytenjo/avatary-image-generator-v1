@@ -147,9 +147,15 @@ def verify_comfyui_core_workspace(comfyui_dir: Path) -> None:
         )
 
 
-def enable_manager_gui(comfyui_dir: Path) -> None:
-    print("Enabling ComfyUI-Manager modern UI...")
-    run(["comfy", "--workspace", str(comfyui_dir), "manager", "enable-gui"], timeout=30, input_text="n\n")
+def enable_manager_gui(comfyui_dir: Path, *, quiet: bool = False) -> None:
+    if not quiet:
+        print("Enabling ComfyUI-Manager modern UI...")
+    run(
+        ["comfy", "--workspace", str(comfyui_dir), "manager", "enable-gui"],
+        timeout=30,
+        input_text="n\n",
+        quiet=quiet,
+    )
 
 
 def _ensure_manager_runtime_ready(comfyui_dir: Path, network_volume: Path) -> None:
