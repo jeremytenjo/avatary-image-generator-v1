@@ -200,6 +200,7 @@ except Exception:
 
 def stop_comfyui_service(comfyui_dir: Path) -> None:
     run(["comfy", "--workspace", str(comfyui_dir), "stop"], check=False, quiet=True)
+    run(["pkill", "-f", "ComfyUI"], check=False, quiet=True)
     time.sleep(1)
 
 
