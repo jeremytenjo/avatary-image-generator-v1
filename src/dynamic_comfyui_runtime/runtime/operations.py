@@ -87,6 +87,8 @@ Run this command in the terminal to replace current project resources with a new
 
 Run this command in the terminal to restart ComfyUI `dynamic-comfyui restart`
 
+Run this command in the terminal to stop ComfyUI `dynamic-comfyui stop`
+
 Run this command in the terminal to update nodes and files (uses the last saved JSON URL) `dynamic-comfyui update-nodes-and-models`
 
 Run this command in the terminal to install custom nodes/files only `dynamic-comfyui install-deps <project-json-url>`
@@ -444,6 +446,16 @@ def cmd_restart(ctx: RuntimeContext) -> None:
     for line in startup_lines:
         print(line)
     print("ComfyUI restart complete.")
+
+
+def cmd_stop(ctx: RuntimeContext) -> None:
+    configure_process_env()
+    network_volume = set_network_volume_default(ctx.network_volume)
+    comfyui_dir, _ = ensure_comfyui_workspace(network_volume)
+    ensure_comfy_cli_ready(network_volume)
+    print("Stopping ComfyUI...")
+    stop_comfyui_service(comfyui_dir)
+    print("ComfyUI stop complete.")
 
 
 def cmd_update_dc(_ctx: RuntimeContext) -> None:

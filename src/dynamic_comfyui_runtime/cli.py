@@ -11,6 +11,7 @@ from .runtime.operations import (
     cmd_install,
     cmd_replace_project,
     cmd_restart,
+    cmd_stop,
     cmd_start,
     cmd_start_new_project,
     cmd_uninstall_dc,
@@ -80,6 +81,9 @@ def _help_text() -> str:
 - dc restart
   Restart ComfyUI service.
 
+- dc stop
+  Stop ComfyUI service.
+
 - dc update-dc
   Update dynamic-comfyui runtime package to latest release wheel.
 
@@ -102,6 +106,7 @@ def build_parser() -> argparse.ArgumentParser:
         "replace-project",
         "update-nodes-and-models",
         "restart",
+        "stop",
         "update-dc",
         "uninstall-dc",
         "help",
@@ -140,6 +145,7 @@ def main() -> None:
         "replace-project": cmd_replace_project,
         "update-nodes-and-models": cmd_update_nodes_and_models,
         "restart": cmd_restart,
+        "stop": cmd_stop,
         "update-dc": cmd_update_dc,
         "uninstall-dc": cmd_uninstall_dc,
     }
