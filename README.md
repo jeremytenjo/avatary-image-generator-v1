@@ -44,6 +44,9 @@ Define project manifests (custom nodes + files) for repeatable ComfyUI setup on 
 - `dc uninstall-dc`
   Uninstall the `dynamic-comfyui-runtime` package from the current Python environment.
 
+- `dc system-info`
+  Print ComfyUI/frontend/Python/PyTorch/CUDA/GPU/RAM version information.
+
 - `dc help`
   Show the command help menu.
 

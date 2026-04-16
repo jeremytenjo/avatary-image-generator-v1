@@ -14,6 +14,7 @@ from .runtime.operations import (
     cmd_stop,
     cmd_start,
     cmd_start_new_project,
+    cmd_system_info,
     cmd_uninstall_dc,
     cmd_update_dc,
     cmd_update_nodes_and_models,
@@ -90,6 +91,9 @@ def _help_text() -> str:
 - dc uninstall-dc
   Uninstall dynamic-comfyui runtime package from the current Python environment.
 
+- dc system-info
+  Print ComfyUI/frontend/Python/PyTorch/CUDA/GPU/RAM version information.
+
 - dc help
   Show this help menu.
 """
@@ -109,6 +113,7 @@ def build_parser() -> argparse.ArgumentParser:
         "stop",
         "update-dc",
         "uninstall-dc",
+        "system-info",
         "help",
     ):
         subparsers.add_parser(cmd)
@@ -148,6 +153,7 @@ def main() -> None:
         "stop": cmd_stop,
         "update-dc": cmd_update_dc,
         "uninstall-dc": cmd_uninstall_dc,
+        "system-info": cmd_system_info,
     }
 
     try:

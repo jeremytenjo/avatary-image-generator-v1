@@ -43,6 +43,7 @@ from .service import (
     stop_comfyui_service,
     verify_comfyui_core_workspace,
 )
+from .system_info import collect_system_info, print_system_info
 from .updater import uninstall_runtime_package, upgrade_runtime_package
 
 
@@ -96,6 +97,8 @@ Run this command in the terminal to install custom nodes/files only `dynamic-com
 Run this command in the terminal to update the dynamic-comfyui runtime package to latest `dynamic-comfyui update-dc`
 
 Run this command in the terminal to uninstall the dynamic-comfyui runtime package `dynamic-comfyui uninstall-dc`
+
+Run this command in the terminal to print runtime/GPU versions and memory info `dynamic-comfyui system-info`
 
 Run this command in the terminal to list available commands `dynamic-comfyui help`
 """
@@ -466,3 +469,11 @@ def cmd_update_dc(_ctx: RuntimeContext) -> None:
 def cmd_uninstall_dc(_ctx: RuntimeContext) -> None:
     if not uninstall_runtime_package():
         raise RuntimeError("Runtime package uninstall failed")
+
+
+def cmd_system_info(ctx: RuntimeContext) -> None:
+    configure_process_env()
+    network_volume = set_network_volume_default(ctx.network_volume)
+    detected_comfyui = discover_comfyui_workspace(network_volume)
+    info = collect_system_info(detected_comfyui)
+    print_system_info(info)
