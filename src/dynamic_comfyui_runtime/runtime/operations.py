@@ -42,6 +42,7 @@ from .service import (
     start_comfyui_service,
     stop_comfyui_service,
     verify_comfyui_core_workspace,
+    resolve_runpod_proxy_url,
 )
 from .system_info import collect_system_info, print_system_info
 from .updater import uninstall_runtime_package, upgrade_runtime_package
@@ -207,6 +208,13 @@ def _print_resource_summary(
     _print_failures(node_failures, file_failures)
 
 
+def _print_comfyui_link() -> None:
+    runpod_url = resolve_runpod_proxy_url(8188)
+    gui_url = runpod_url if runpod_url else "http://127.0.0.1:8188"
+    blue_gui_url = f"\033[34m{gui_url}\033[0m"
+    print(f"🚀 ComfyUI page: {blue_gui_url}")
+
+
 def _execute_dependency_install(
     ctx: RuntimeContext, project_manifest_path: Path, *, manager_quiet: bool
 ) -> InstallExecution:
@@ -278,6 +286,7 @@ def run_dependency_install_flow(ctx: RuntimeContext, project_manifest_path: Path
         execution.file_failures,
     )
     print("Dependency installation complete.")
+    _print_comfyui_link()
 
 
 def cmd_install(ctx: RuntimeContext) -> None:
