@@ -451,7 +451,17 @@ def cmd_update_nodes_and_models(ctx: RuntimeContext) -> None:
 def cmd_restart(ctx: RuntimeContext) -> None:
     configure_process_env()
     network_volume = set_network_volume_default(ctx.network_volume)
-    comfyui_dir, _ = ensure_comfyui_workspace(network_volume)
+    detected_comfyui = discover_comfyui_workspace(network_volume)
+    if detected_comfyui is not None:
+        detected_volume = detected_comfyui.parent
+        if detected_volume != network_volume:
+            print(f"Detected ComfyUI workspace at {detected_comfyui}. Using {detected_volume} as workspace root.")
+        network_volume = detected_volume
+        comfyui_dir = detected_comfyui
+    else:
+        print(f"Could not auto-detect ComfyUI workspace. Using configured workspace root: {network_volume}")
+        comfyui_dir, _ = ensure_comfyui_workspace(network_volume)
+
     print("Restarting ComfyUI...")
     startup_lines = start_comfyui_service_for_restart(comfyui_dir, network_volume)
     for line in startup_lines:
