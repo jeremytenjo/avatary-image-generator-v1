@@ -196,19 +196,14 @@ def install_files(
             file_spec = futures[future]
             completed_downloads += 1
             remaining_downloads = total_downloads - completed_downloads
+            blue_remaining = f"\033[34m(remaining {remaining_downloads})\033[0m"
             failure = future.result()
             if failure is not None:
                 failures.append(failure)
                 print(f"❌ Failed to download {file_spec.target}: {failure.error}")
-                print(
-                    f"Download progress: completed {completed_downloads}/{total_downloads}, "
-                    f"remaining {remaining_downloads}"
-                )
+                print(f"Download progress: {blue_remaining}")
             else:
-                print(
-                    f"✅ Downloaded {file_spec.target} "
-                    f"(completed {completed_downloads}/{total_downloads}, remaining {remaining_downloads})"
-                )
+                print(f"✅ Downloaded {file_spec.target} {blue_remaining}")
             if on_progress:
                 on_progress()
 
