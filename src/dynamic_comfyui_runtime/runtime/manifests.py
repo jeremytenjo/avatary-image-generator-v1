@@ -135,7 +135,11 @@ def _parse_manifest(path: Path) -> ManifestData:
         project_url = normalize_manifest_url(str(item.get("project_url", "")).strip())
         if not project_url:
             raise ValueError(f"import_projects[{idx}].project_url is required")
-        validate_manifest_url(project_url)
+        try:
+            validate_manifest_url(project_url)
+        except Exception as exc:
+            print(f"Warning: skipping invalid import_projects[{idx}].project_url '{project_url}' ({exc})")
+            continue
         import_projects.append(ImportProject(project_url=project_url))
 
     return ManifestData(
