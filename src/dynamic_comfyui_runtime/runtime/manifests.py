@@ -138,7 +138,7 @@ def _parse_manifest(path: Path) -> ManifestData:
         try:
             validate_manifest_url(project_url)
         except Exception as exc:
-            print(f"Warning: skipping invalid import_projects[{idx}].project_url '{project_url}' ({exc})")
+            print(f"⚠️ Warning: skipping invalid import_projects[{idx}].project_url '{project_url}' ({exc})")
             continue
         import_projects.append(ImportProject(project_url=project_url))
 
