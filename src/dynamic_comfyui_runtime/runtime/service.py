@@ -201,6 +201,8 @@ except Exception:
 def stop_comfyui_service(comfyui_dir: Path) -> None:
     if command_exists("comfy"):
         run(["comfy", "--workspace", str(comfyui_dir), "stop"], check=False, quiet=True)
+    if is_main_py_listen_process_running():
+        run(["pkill", "-f", "main.py"], check=False, quiet=True)
     run(["pkill", "-f", "ComfyUI"], check=False, quiet=True)
     run(["pkill", "-f", "main.py --listen 0.0.0.0 --port 8188"], check=False, quiet=True)
     time.sleep(1)
