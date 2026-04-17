@@ -5,6 +5,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from threading import Lock
 
 from .common import download_file, format_size_for_display, probe_remote_file_size, run
@@ -128,6 +129,10 @@ def install_files(
                 print(f" - {target}")
 
     progress_lock = Lock()
+    url_pattern = re.compile(r"https?://\S+")
+
+    def _colorize_urls_red(text: str) -> str:
+        return url_pattern.sub(lambda m: f"\033[31m{m.group(0)}\033[0m", text)
 
     def _process_file(file_spec: FileSpec) -> FileInstallFailure | None:
         target_path = comfyui_dir / file_spec.target
@@ -200,7 +205,7 @@ def install_files(
             failure = future.result()
             if failure is not None:
                 failures.append(failure)
-                print(f"❌ Failed to download {file_spec.target}: {failure.error}")
+                print(f"❌ Failed to download {file_spec.target}: {_colorize_urls_red(failure.error)}")
                 print(f"Download progress: {blue_remaining}")
             else:
                 print(f"✅ Downloaded {file_spec.target} {blue_remaining}")
