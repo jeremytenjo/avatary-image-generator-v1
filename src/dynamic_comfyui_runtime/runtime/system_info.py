@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from importlib import metadata
 from pathlib import Path
 
+from .common import format_size_for_display
+
 
 @dataclass
 class SystemInfo:
@@ -52,23 +54,10 @@ def _read_json_version(path: Path) -> str | None:
     return None
 
 
-def _format_gib_from_mib(mib: str) -> str:
-    try:
-        gib = float(mib) / 1024.0
-    except Exception:
-        return "N/A"
-    if gib >= 10:
-        return f"{int(round(gib))} GB"
-    return f"{gib:.1f} GB"
-
-
-def _format_bytes_as_gib(byte_count: int) -> str:
+def _format_bytes_for_display(byte_count: int) -> str:
     if byte_count <= 0:
         return "N/A"
-    gib = byte_count / (1024.0**3)
-    if gib >= 10:
-        return f"{int(round(gib))} GB"
-    return f"{gib:.1f} GB"
+    return format_size_for_display(byte_count)
 
 
 def _detect_comfyui_version(comfyui_dir: Path | None) -> str:
@@ -154,7 +143,11 @@ def _detect_gpu_details() -> tuple[str, str, str]:
     if len(parts) < 3:
         return "N/A", "N/A", "N/A"
     driver_version, gpu_model, memory_mib = parts[0], parts[1], parts[2]
-    return driver_version or "N/A", gpu_model or "N/A", _format_gib_from_mib(memory_mib)
+    try:
+        memory_bytes = int(float(memory_mib) * 1024 * 1024)
+    except Exception:
+        return driver_version or "N/A", gpu_model or "N/A", "N/A"
+    return driver_version or "N/A", gpu_model or "N/A", _format_bytes_for_display(memory_bytes)
 
 
 def _detect_system_ram() -> str:
@@ -162,7 +155,7 @@ def _detect_system_ram() -> str:
         page_size = os.sysconf("SC_PAGE_SIZE")
         page_count = os.sysconf("SC_PHYS_PAGES")
         if isinstance(page_size, int) and isinstance(page_count, int) and page_size > 0 and page_count > 0:
-            return _format_bytes_as_gib(page_size * page_count)
+            return _format_bytes_for_display(page_size * page_count)
     except Exception:
         pass
 
@@ -176,7 +169,7 @@ def _detect_system_ram() -> str:
             parts = line.split()
             if len(parts) >= 2:
                 kib = int(parts[1])
-                return _format_bytes_as_gib(kib * 1024)
+                return _format_bytes_for_display(kib * 1024)
     except Exception:
         return "N/A"
     return "N/A"

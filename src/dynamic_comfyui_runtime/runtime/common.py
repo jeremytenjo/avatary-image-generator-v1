@@ -142,6 +142,15 @@ def read_nonempty_lines(path: Path) -> list[str]:
     return [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
+def format_size_for_display(byte_count: int) -> str:
+    if byte_count < 0:
+        return "N/A"
+    mb = byte_count / (1024 * 1024)
+    if mb >= 1000:
+        return f"{byte_count / (1024 * 1024 * 1024):.2f} GB"
+    return f"{mb:.1f} MB"
+
+
 def now_epoch() -> int:
     return int(time.time())
 

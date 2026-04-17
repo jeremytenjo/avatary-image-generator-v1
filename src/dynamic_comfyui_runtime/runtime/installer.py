@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
 
-from .common import download_file, run
+from .common import download_file, format_size_for_display, run
 from .manifests import CustomNode, FileSpec
 
 
@@ -91,12 +91,6 @@ def install_files(
 
     progress_lock = Lock()
 
-    def _format_size(byte_count: int) -> str:
-        mb = byte_count / (1024 * 1024)
-        if mb >= 1000:
-            return f"{byte_count / (1024 * 1024 * 1024):.2f} GB"
-        return f"{mb:.1f} MB"
-
     def _process_file(file_spec: FileSpec) -> FileInstallFailure | None:
         target_path = comfyui_dir / file_spec.target
         if target_path.is_file():
@@ -116,7 +110,7 @@ def install_files(
                         last_percent_bucket = bucket
                         print(
                             f"  Downloading {file_spec.target}: {percent}% "
-                            f"({_format_size(downloaded)}/{_format_size(total_size)})"
+                            f"({format_size_for_display(downloaded)}/{format_size_for_display(total_size)})"
                         )
                         return
 
@@ -125,7 +119,7 @@ def install_files(
                     if report_bucket <= last_unknown_report_mb:
                         return
                     last_unknown_report_mb = report_bucket
-                    print(f"  Downloading {file_spec.target}: {_format_size(downloaded)}")
+                    print(f"  Downloading {file_spec.target}: {format_size_for_display(downloaded)}")
 
             download_file(file_spec.url, target_path, hf_token=hf_token, on_progress=_on_download_progress)
         except Exception as exc:
