@@ -238,10 +238,19 @@ def read_nonempty_lines(path: Path) -> list[str]:
 def format_size_for_display(byte_count: int) -> str:
     if byte_count < 0:
         return "N/A"
-    mb = byte_count / (1024 * 1024)
-    if mb >= 1000:
-        return f"{byte_count / (1024 * 1024 * 1024):.2f} GB"
-    return f"{mb:.1f} MB"
+    units = ("B", "KB", "MB", "GB", "TB", "PB")
+    value = float(byte_count)
+    unit_idx = 0
+    while value >= 1024 and unit_idx < len(units) - 1:
+        value /= 1024
+        unit_idx += 1
+
+    unit = units[unit_idx]
+    if unit == "B":
+        return f"{int(value)} {unit}"
+    if value >= 100:
+        return f"{value:.1f} {unit}"
+    return f"{value:.2f} {unit}"
 
 
 def now_epoch() -> int:
