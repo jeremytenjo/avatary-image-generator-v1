@@ -134,6 +134,14 @@ def download_file(
                     downloaded += len(chunk)
                     if on_progress:
                         on_progress(downloaded, total_size)
+            if on_progress:
+                on_progress(downloaded, total_size)
+            if total_size is not None and downloaded != total_size:
+                raise RuntimeError(
+                    "Download ended before expected size was received "
+                    f"for {url}. Expected {format_size_for_display(total_size)}, "
+                    f"got {format_size_for_display(downloaded)}."
+                )
     except urllib.error.HTTPError as exc:
         target.unlink(missing_ok=True)
         raise RuntimeError(f"Download failed ({exc.code}) for {url}") from exc
