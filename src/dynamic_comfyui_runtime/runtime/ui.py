@@ -22,6 +22,7 @@ _THEME = Theme(
         "muted": "default",
         "url": "bright_blue underline",
         "phase": "default",
+        "progress.download": "default",
     }
 )
 

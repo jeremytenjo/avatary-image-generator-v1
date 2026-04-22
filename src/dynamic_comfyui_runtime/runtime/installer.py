@@ -37,17 +37,22 @@ def install_custom_nodes(
     failures: list[NodeInstallFailure] = []
     with Progress(
         TextColumn("{task.description}"),
-        BarColumn(style="default", complete_style="default", finished_style="default", pulse_style="default"),
+        BarColumn(style="blue", complete_style="blue", finished_style="blue", pulse_style="blue"),
         TextColumn("{task.completed:.0f}/{task.total:.0f}"),
+        TextColumn("{task.fields[stage]}"),
         transient=is_interactive_terminal(),
     ) as progress:
-        overall_task_id = progress.add_task("Custom node setup", total=len(custom_nodes))
+        overall_task_id = progress.add_task("Custom nodes", total=len(custom_nodes), stage="starting")
         for node in custom_nodes:
             node_path = custom_nodes_dir / node.repo_dir
-            node_task_id = progress.add_task(f"{node.repo_dir}", total=3)
+            node_task_id = progress.add_task(node.repo_dir, total=3, stage="queued")
             if node_path.is_dir():
-                progress.update(node_task_id, completed=3)
+                progress.update(node_task_id, completed=3, stage="already installed")
                 progress.advance(overall_task_id, 1)
+                progress.update(
+                    overall_task_id,
+                    stage=f"{int(progress.tasks[overall_task_id].completed)}/{len(custom_nodes)} complete",
+                )
                 if on_progress:
                     on_progress()
                 continue
@@ -55,13 +60,18 @@ def install_custom_nodes(
             if node_path.exists():
                 shutil.rmtree(node_path)
             try:
-                run(["git", "clone", node.repo, str(node_path)])
-                progress.advance(node_task_id, 1)
+                progress.update(node_task_id, stage="cloning")
+                run(["git", "clone", node.repo, str(node_path)], quiet=True)
+                progress.advance(node_task_id, 1, stage="clone complete")
             except Exception as exc:
                 failures.append(NodeInstallFailure(repo_dir=node.repo_dir, step="git clone", error=str(exc)))
                 print_error(f"Failed to clone custom node {node.repo_dir}: {exc}")
-                progress.update(node_task_id, completed=3)
+                progress.update(node_task_id, completed=3, stage="failed")
                 progress.advance(overall_task_id, 1)
+                progress.update(
+                    overall_task_id,
+                    stage=f"{int(progress.tasks[overall_task_id].completed)}/{len(custom_nodes)} complete",
+                )
                 if on_progress:
                     on_progress()
                 continue
@@ -69,31 +79,51 @@ def install_custom_nodes(
             requirements = node_path / "requirements.txt"
             if requirements.is_file():
                 try:
-                    run(["python3", "-m", "pip", "install", "--no-cache-dir", "-r", str(requirements)])
+                    progress.update(node_task_id, stage="installing requirements")
+                    run(["python3", "-m", "pip", "install", "--no-cache-dir", "-r", str(requirements)], quiet=True)
                 except Exception as exc:
                     failures.append(NodeInstallFailure(repo_dir=node.repo_dir, step="requirements install", error=str(exc)))
                     print_error(f"Failed to install requirements for {node.repo_dir}: {exc}")
-                    progress.update(node_task_id, completed=3)
+                    progress.update(node_task_id, completed=3, stage="failed")
                     progress.advance(overall_task_id, 1)
+                    progress.update(
+                        overall_task_id,
+                        stage=f"{int(progress.tasks[overall_task_id].completed)}/{len(custom_nodes)} complete",
+                    )
                     if on_progress:
                         on_progress()
                     continue
-            progress.advance(node_task_id, 1)
+                progress.advance(node_task_id, 1, stage="requirements complete")
+            else:
+                progress.advance(node_task_id, 1, stage="requirements skipped")
 
             install_py = node_path / "install.py"
             if install_py.is_file():
                 try:
-                    run(["python3", "install.py"], cwd=node_path)
+                    progress.update(node_task_id, stage="running install.py")
+                    run(["python3", "install.py"], cwd=node_path, quiet=True)
                 except Exception as exc:
                     failures.append(NodeInstallFailure(repo_dir=node.repo_dir, step="install.py", error=str(exc)))
                     print_error(f"Failed to run install.py for {node.repo_dir}: {exc}")
-                    progress.update(node_task_id, completed=3)
+                    progress.update(node_task_id, completed=3, stage="failed")
                     progress.advance(overall_task_id, 1)
+                    progress.update(
+                        overall_task_id,
+                        stage=f"{int(progress.tasks[overall_task_id].completed)}/{len(custom_nodes)} complete",
+                    )
                     if on_progress:
                         on_progress()
                     continue
-            progress.advance(node_task_id, 1)
+                progress.advance(node_task_id, 1, stage="install.py complete")
+            else:
+                progress.advance(node_task_id, 1, stage="install.py skipped")
+            progress.update(node_task_id, stage="done")
             progress.advance(overall_task_id, 1)
+            progress.update(
+                overall_task_id,
+                stage=f"{int(progress.tasks[overall_task_id].completed)}/{len(custom_nodes)} complete",
+            )
+            print_success(f"Custom node ready: {node.repo_dir}")
             if on_progress:
                 on_progress()
     return failures
@@ -214,7 +244,7 @@ def install_files(
     futures: dict = {}
     with Progress(
         TextColumn("{task.description}"),
-        BarColumn(style="default", complete_style="default", finished_style="default", pulse_style="default"),
+        BarColumn(style="blue", complete_style="blue", finished_style="blue", pulse_style="blue"),
         DownloadColumn(),
         transient=is_interactive_terminal(),
     ) as progress, ThreadPoolExecutor(max_workers=5) as executor:
