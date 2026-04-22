@@ -47,6 +47,27 @@ def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+def effective_free_bytes(path: Path) -> int:
+    """Return a conservative free-space estimate for constrained container environments.
+
+    Some mounted paths can report very large backing-store free space while the pod root
+    filesystem has a much smaller effective quota. We cap by root free bytes.
+    """
+    try:
+        path_free = shutil.disk_usage(path).free
+    except Exception:
+        path_free = -1
+    try:
+        root_free = shutil.disk_usage(Path("/")).free
+    except Exception:
+        root_free = -1
+
+    candidates = [value for value in (path_free, root_free) if value >= 0]
+    if not candidates:
+        return 0
+    return min(candidates)
+
+
 def find_file_upwards(filename: str, start_dir: Path | None = None) -> Path | None:
     current = (start_dir or Path.cwd()).resolve()
     for directory in (current, *current.parents):
@@ -157,7 +178,7 @@ def download_file(
 
 
 def _preallocate_download_target(url: str, target: Path, out_file: BinaryIO, total_size: int) -> None:
-    free_bytes = shutil.disk_usage(target.parent).free
+    free_bytes = effective_free_bytes(target.parent)
     if total_size > free_bytes:
         raise RuntimeError(
             "Insufficient storage before starting download. "

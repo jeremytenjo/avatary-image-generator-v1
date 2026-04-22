@@ -9,7 +9,7 @@ from threading import Lock
 from rich.progress import BarColumn, DownloadColumn, Progress, TaskID, TextColumn, TimeElapsedColumn, TransferSpeedColumn
 from rich.table import Table
 
-from .common import download_file, format_size_for_display, probe_remote_file_size, run
+from .common import download_file, effective_free_bytes, format_size_for_display, probe_remote_file_size, run
 from .manifests import CustomNode, FileSpec
 from .ui import console, is_interactive_terminal, print_error, print_info, print_success, print_warning, status
 
@@ -118,7 +118,7 @@ def install_files(
             required_known_bytes += size
             preflight_rows.append((file_spec.target, format_size_for_display(size), "Yes"))
 
-        free_bytes = shutil.disk_usage(comfyui_dir).free
+        free_bytes = effective_free_bytes(comfyui_dir)
         print_info(
             "Storage preflight: "
             f"known required={format_size_for_display(required_known_bytes)}, "
@@ -160,7 +160,7 @@ def install_files(
         try:
             if known_size is not None and known_size > 0:
                 with reservation_lock:
-                    free_bytes_now = shutil.disk_usage(comfyui_dir).free
+                    free_bytes_now = effective_free_bytes(comfyui_dir)
                     available_bytes = free_bytes_now - reserved_known_bytes
                     if known_size > available_bytes:
                         raise RuntimeError(
