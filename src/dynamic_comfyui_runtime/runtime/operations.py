@@ -226,71 +226,44 @@ def _print_resource_summary(
     file_failures: list[FileInstallFailure],
 ) -> None:
     print_rule("Summary")
-    tables: list[Table] = []
 
     def _installed_file_size_label(path: Path) -> str:
         if not path.is_file():
             return "-"
         return format_size_for_display(path.stat().st_size)
 
-    nodes_default = Table()
-    nodes_default.add_column("Custom Nodes (default resources)")
-    nodes_default.add_column("Status")
-    if merged.default_custom_nodes:
-        for node in merged.default_custom_nodes:
-            exists = (custom_nodes_dir / node.repo_dir).is_dir()
-            nodes_default.add_row(node.repo_dir, "installed" if exists else "missing on disk")
+    nodes_table = Table()
+    nodes_table.add_column("Custom Nodes", overflow="fold")
+    nodes_table.add_column("Source")
+    nodes_table.add_column("Status")
+    if merged.default_custom_nodes or merged.project_custom_nodes:
+        for source, specs in (("default", merged.default_custom_nodes), ("project", merged.project_custom_nodes)):
+            for node in specs:
+                exists = (custom_nodes_dir / node.repo_dir).is_dir()
+                nodes_table.add_row(node.repo_dir, source, "installed" if exists else "missing on disk")
     else:
-        nodes_default.add_row("(none)", "-")
-    tables.append(nodes_default)
+        nodes_table.add_row("(none)", "-", "-")
+    console().print(nodes_table)
 
-    nodes_project = Table()
-    nodes_project.add_column("Custom Nodes (project manifest)")
-    nodes_project.add_column("Status")
-    if merged.project_custom_nodes:
-        for node in merged.project_custom_nodes:
-            exists = (custom_nodes_dir / node.repo_dir).is_dir()
-            nodes_project.add_row(node.repo_dir, "installed" if exists else "missing on disk")
+    files_table = Table()
+    files_table.add_column("Files", overflow="fold")
+    files_table.add_column("Source")
+    files_table.add_column("Size", justify="right")
+    files_table.add_column("Status")
+    if merged.default_files or merged.project_files:
+        for source, specs in (("default", merged.default_files), ("project", merged.project_files)):
+            for spec in specs:
+                file_path = comfyui_dir / spec.target
+                exists = file_path.is_file()
+                files_table.add_row(
+                    spec.target,
+                    source,
+                    _installed_file_size_label(file_path),
+                    "installed" if exists else "missing on disk",
+                )
     else:
-        nodes_project.add_row("(none)", "-")
-    tables.append(nodes_project)
-
-    files_default = Table()
-    files_default.add_column("Files (default resources)", overflow="fold")
-    files_default.add_column("Size", justify="right")
-    files_default.add_column("Status")
-    if merged.default_files:
-        for spec in merged.default_files:
-            file_path = comfyui_dir / spec.target
-            exists = file_path.is_file()
-            files_default.add_row(
-                spec.target,
-                _installed_file_size_label(file_path),
-                "installed" if exists else "missing on disk",
-            )
-    else:
-        files_default.add_row("(none)", "-", "-")
-    tables.append(files_default)
-
-    files_project = Table()
-    files_project.add_column("Files (project manifest)", overflow="fold")
-    files_project.add_column("Size", justify="right")
-    files_project.add_column("Status")
-    if merged.project_files:
-        for spec in merged.project_files:
-            file_path = comfyui_dir / spec.target
-            exists = file_path.is_file()
-            files_project.add_row(
-                spec.target,
-                _installed_file_size_label(file_path),
-                "installed" if exists else "missing on disk",
-            )
-    else:
-        files_project.add_row("(none)", "-", "-")
-    tables.append(files_project)
-
-    for table in tables:
-        console().print(table)
+        files_table.add_row("(none)", "-", "-", "-")
+    console().print(files_table)
     _print_failures(node_failures, file_failures)
 
 
