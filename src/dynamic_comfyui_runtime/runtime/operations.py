@@ -247,17 +247,17 @@ def _print_resource_summary(
 
     files_table = Table()
     files_table.add_column("Files", overflow="fold")
-    files_table.add_column("Source")
+    files_table.add_column("Source", overflow="fold")
     files_table.add_column("Size", justify="right")
     files_table.add_column("Status")
     if merged.default_files or merged.project_files:
-        for source, specs in (("default", merged.default_files), ("project", merged.project_files)):
+        for specs in (merged.default_files, merged.project_files):
             for spec in specs:
                 file_path = comfyui_dir / spec.target
                 exists = file_path.is_file()
                 files_table.add_row(
                     spec.target,
-                    source,
+                    spec.url,
                     _installed_file_size_label(file_path),
                     "installed" if exists else "missing on disk",
                 )
