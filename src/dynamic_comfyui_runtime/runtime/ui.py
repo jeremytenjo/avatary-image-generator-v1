@@ -17,8 +17,8 @@ _THEME = Theme(
     {
         "info": "default",
         "success": "default",
-        "warning": "default",
-        "error": "default",
+        "warning": "yellow",
+        "error": "bold red",
         "muted": "default",
         "url": "bright_blue underline",
         "phase": "default",
