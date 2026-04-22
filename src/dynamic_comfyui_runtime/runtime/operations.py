@@ -15,7 +15,6 @@ from .installer import (
     remove_project_resources,
 )
 from .manifests import (
-    CustomNode,
     MergedManifest,
     active_project_manifest_path,
     download_manifest,
@@ -219,33 +218,6 @@ def _print_failures(node_failures: list[NodeInstallFailure], file_failures: list
             print_error(f" - {failure.target} ({failure.error})")
 
 
-def _print_installed_custom_nodes_table(
-    custom_nodes: list[CustomNode],
-    custom_nodes_dir: Path,
-    node_failures: list[NodeInstallFailure],
-) -> None:
-    table = Table(title="Installed Custom Nodes")
-    table.add_column("Custom Node", overflow="fold")
-    table.add_column("Status")
-
-    failure_by_node = {failure.repo_dir: failure for failure in node_failures}
-    installed = False
-    for node in custom_nodes:
-        if node.repo_dir in failure_by_node:
-            installed = True
-            table.add_row(node.repo_dir, "failed")
-            continue
-        exists = (custom_nodes_dir / node.repo_dir).is_dir()
-        if exists:
-            installed = True
-            table.add_row(node.repo_dir, "installed")
-
-    if not installed:
-        table.add_row("(none)", "-")
-
-    console().print(table)
-
-
 def _print_resource_summary(
     merged: MergedManifest,
     custom_nodes_dir: Path,
@@ -337,7 +309,6 @@ def _execute_dependency_install(
     node_failures = install_custom_nodes(
         merged.merged_custom_nodes, custom_nodes_dir, on_progress=lambda: mark_running(merged, comfyui_dir)
     )
-    _print_installed_custom_nodes_table(merged.merged_custom_nodes, custom_nodes_dir, node_failures)
 
     print_rule("Files")
     file_failures = install_files(
