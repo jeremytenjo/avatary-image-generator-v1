@@ -173,7 +173,7 @@ def install_files(
         print_info(f"Storage preflight: known required={format_size_for_display(required_known_bytes)}")
         preflight_table = Table(show_lines=False)
         preflight_table.add_column("Download Preflight", overflow="fold")
-        preflight_table.add_column("Remote Size", justify="right")
+        preflight_table.add_column("Size", justify="right")
         for target, remote_size, _size_bytes in preflight_rows:
             preflight_table.add_row(target, remote_size)
         console().print(preflight_table)

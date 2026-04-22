@@ -165,7 +165,6 @@ def download_file(
             chunk_size = 1024 * 1024
             with target.open("wb") as out_file:
                 if total_size and total_size > 0:
-                    print_info(f"Preallocating {target}: {format_size_for_display(total_size)}")
                     _preallocate_download_target(url, target, out_file, total_size)
                 while True:
                     chunk = resp.read(chunk_size)
