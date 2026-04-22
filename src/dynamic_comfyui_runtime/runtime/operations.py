@@ -4,7 +4,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from rich.tree import Tree
+from rich.table import Table
 
 from .common import ensure_dir, now_epoch, require_tools, utc_timestamp
 from .installer import (
@@ -225,37 +225,55 @@ def _print_resource_summary(
     node_failures: list[NodeInstallFailure],
     file_failures: list[FileInstallFailure],
 ) -> None:
-    summary_tree = Tree("[success]Install Summary[/]")
-    nodes_default_branch = summary_tree.add("[info]Custom nodes (default resources)[/]")
-    for node in merged.default_custom_nodes:
-        suffix = "" if (custom_nodes_dir / node.repo_dir).is_dir() else " [muted](missing on disk)[/]"
-        nodes_default_branch.add(f"{node.repo_dir}{suffix}")
-    if not merged.default_custom_nodes:
-        nodes_default_branch.add("[muted](none)[/]")
-
-    nodes_project_branch = summary_tree.add("[info]Custom nodes (project manifest)[/]")
-    for node in merged.project_custom_nodes:
-        suffix = "" if (custom_nodes_dir / node.repo_dir).is_dir() else " [muted](missing on disk)[/]"
-        nodes_project_branch.add(f"{node.repo_dir}{suffix}")
-    if not merged.project_custom_nodes:
-        nodes_project_branch.add("[muted](none)[/]")
-
-    files_default_branch = summary_tree.add("[info]Files (default resources)[/]")
-    for spec in merged.default_files:
-        suffix = "" if (comfyui_dir / spec.target).is_file() else " [muted](missing on disk)[/]"
-        files_default_branch.add(f"{spec.target}{suffix}")
-    if not merged.default_files:
-        files_default_branch.add("[muted](none)[/]")
-
-    files_project_branch = summary_tree.add("[info]Files (project manifest)[/]")
-    for spec in merged.project_files:
-        suffix = "" if (comfyui_dir / spec.target).is_file() else " [muted](missing on disk)[/]"
-        files_project_branch.add(f"{spec.target}{suffix}")
-    if not merged.project_files:
-        files_project_branch.add("[muted](none)[/]")
-
     print_rule("Summary")
-    console().print(summary_tree)
+    tables: list[Table] = []
+
+    nodes_default = Table(title="Custom Nodes (default resources)")
+    nodes_default.add_column("Repo Dir")
+    nodes_default.add_column("Status")
+    if merged.default_custom_nodes:
+        for node in merged.default_custom_nodes:
+            exists = (custom_nodes_dir / node.repo_dir).is_dir()
+            nodes_default.add_row(node.repo_dir, "installed" if exists else "missing on disk")
+    else:
+        nodes_default.add_row("(none)", "-")
+    tables.append(nodes_default)
+
+    nodes_project = Table(title="Custom Nodes (project manifest)")
+    nodes_project.add_column("Repo Dir")
+    nodes_project.add_column("Status")
+    if merged.project_custom_nodes:
+        for node in merged.project_custom_nodes:
+            exists = (custom_nodes_dir / node.repo_dir).is_dir()
+            nodes_project.add_row(node.repo_dir, "installed" if exists else "missing on disk")
+    else:
+        nodes_project.add_row("(none)", "-")
+    tables.append(nodes_project)
+
+    files_default = Table(title="Files (default resources)")
+    files_default.add_column("Target", overflow="fold")
+    files_default.add_column("Status")
+    if merged.default_files:
+        for spec in merged.default_files:
+            exists = (comfyui_dir / spec.target).is_file()
+            files_default.add_row(spec.target, "installed" if exists else "missing on disk")
+    else:
+        files_default.add_row("(none)", "-")
+    tables.append(files_default)
+
+    files_project = Table(title="Files (project manifest)")
+    files_project.add_column("Target", overflow="fold")
+    files_project.add_column("Status")
+    if merged.project_files:
+        for spec in merged.project_files:
+            exists = (comfyui_dir / spec.target).is_file()
+            files_project.add_row(spec.target, "installed" if exists else "missing on disk")
+    else:
+        files_project.add_row("(none)", "-")
+    tables.append(files_project)
+
+    for table in tables:
+        console().print(table)
     _print_failures(node_failures, file_failures)
 
 
