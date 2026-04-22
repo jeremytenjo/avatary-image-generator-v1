@@ -35,12 +35,14 @@ def install_custom_nodes(
         return []
 
     failures: list[NodeInstallFailure] = []
+    live_progress = bool(is_interactive_terminal() and console().is_terminal)
     with Progress(
         TextColumn("{task.description}"),
         BarColumn(style="grey50", complete_style="blue", finished_style="blue", pulse_style="blue"),
         TextColumn("{task.completed:.0f}/{task.total:.0f}"),
         TextColumn("{task.fields[stage]}"),
-        transient=is_interactive_terminal(),
+        transient=live_progress,
+        disable=not live_progress,
     ) as progress:
         overall_task_id = progress.add_task("Custom nodes", total=len(custom_nodes), stage="starting")
         for node in custom_nodes:
@@ -62,7 +64,8 @@ def install_custom_nodes(
             try:
                 progress.update(node_task_id, stage="cloning")
                 run(["git", "clone", node.repo, str(node_path)], quiet=True)
-                progress.advance(node_task_id, 1, stage="clone complete")
+                progress.advance(node_task_id, 1)
+                progress.update(node_task_id, stage="clone complete")
             except Exception as exc:
                 failures.append(NodeInstallFailure(repo_dir=node.repo_dir, step="git clone", error=str(exc)))
                 print_error(f"Failed to clone custom node {node.repo_dir}: {exc}")
@@ -93,9 +96,11 @@ def install_custom_nodes(
                     if on_progress:
                         on_progress()
                     continue
-                progress.advance(node_task_id, 1, stage="requirements complete")
+                progress.advance(node_task_id, 1)
+                progress.update(node_task_id, stage="requirements complete")
             else:
-                progress.advance(node_task_id, 1, stage="requirements skipped")
+                progress.advance(node_task_id, 1)
+                progress.update(node_task_id, stage="requirements skipped")
 
             install_py = node_path / "install.py"
             if install_py.is_file():
@@ -114,9 +119,11 @@ def install_custom_nodes(
                     if on_progress:
                         on_progress()
                     continue
-                progress.advance(node_task_id, 1, stage="install.py complete")
+                progress.advance(node_task_id, 1)
+                progress.update(node_task_id, stage="install.py complete")
             else:
-                progress.advance(node_task_id, 1, stage="install.py skipped")
+                progress.advance(node_task_id, 1)
+                progress.update(node_task_id, stage="install.py skipped")
             progress.update(node_task_id, stage="done")
             progress.advance(overall_task_id, 1)
             progress.update(
@@ -143,12 +150,13 @@ def install_files(
     files_to_download: list[FileSpec] = []
     seen_targets: set[str] = set()
     for file_spec in files:
-        target_path = comfyui_dir / file_spec.target
-        if file_spec.target in seen_targets:
+        normalized_target = Path(file_spec.target).as_posix()
+        target_path = comfyui_dir / normalized_target
+        if normalized_target in seen_targets:
             continue
-        seen_targets.add(file_spec.target)
+        seen_targets.add(normalized_target)
         if not target_path.is_file():
-            files_to_download.append(file_spec)
+            files_to_download.append(FileSpec(url=file_spec.url, target=normalized_target))
 
     if files_to_download:
         print_info("Checking available storage for pending downloads...")
@@ -193,6 +201,7 @@ def install_files(
     else:
         known_sizes_by_target = {}
 
+    live_progress = bool(is_interactive_terminal() and console().is_terminal)
     progress_lock = Lock()
     reservation_lock = Lock()
     reserved_known_bytes = 0
@@ -249,7 +258,8 @@ def install_files(
         TextColumn("{task.description}"),
         BarColumn(style="grey50", complete_style="blue", finished_style="blue", pulse_style="blue"),
         DownloadColumn(),
-        transient=is_interactive_terminal(),
+        transient=live_progress,
+        disable=not live_progress,
     ) as progress, ThreadPoolExecutor(max_workers=5) as executor:
         for file_spec in files_to_download:
             initial_total = known_sizes_by_target.get(file_spec.target)

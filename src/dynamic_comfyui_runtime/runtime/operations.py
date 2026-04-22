@@ -219,13 +219,22 @@ def _print_failures(node_failures: list[NodeInstallFailure], file_failures: list
             print_error(f" - {failure.target} ({failure.error})")
 
 
-def _print_installed_custom_nodes_table(custom_nodes: list[CustomNode], custom_nodes_dir: Path) -> None:
+def _print_installed_custom_nodes_table(
+    custom_nodes: list[CustomNode],
+    custom_nodes_dir: Path,
+    node_failures: list[NodeInstallFailure],
+) -> None:
     table = Table(title="Installed Custom Nodes")
     table.add_column("Custom Node", overflow="fold")
     table.add_column("Status")
 
+    failure_by_node = {failure.repo_dir: failure for failure in node_failures}
     installed = False
     for node in custom_nodes:
+        if node.repo_dir in failure_by_node:
+            installed = True
+            table.add_row(node.repo_dir, "failed")
+            continue
         exists = (custom_nodes_dir / node.repo_dir).is_dir()
         if exists:
             installed = True
@@ -245,6 +254,7 @@ def _print_resource_summary(
     file_failures: list[FileInstallFailure],
 ) -> None:
     print_rule("Summary")
+    failure_nodes = {failure.repo_dir for failure in node_failures}
 
     def _installed_file_size_label(path: Path) -> str:
         if not path.is_file():
@@ -259,7 +269,11 @@ def _print_resource_summary(
         for source, specs in (("default", merged.default_custom_nodes), ("project", merged.project_custom_nodes)):
             for node in specs:
                 exists = (custom_nodes_dir / node.repo_dir).is_dir()
-                nodes_table.add_row(node.repo_dir, source, "installed" if exists else "missing on disk")
+                if node.repo_dir in failure_nodes:
+                    status = "failed"
+                else:
+                    status = "installed" if exists else "missing on disk"
+                nodes_table.add_row(node.repo_dir, source, status)
     else:
         nodes_table.add_row("(none)", "-", "-")
     console().print(nodes_table)
@@ -323,7 +337,7 @@ def _execute_dependency_install(
     node_failures = install_custom_nodes(
         merged.merged_custom_nodes, custom_nodes_dir, on_progress=lambda: mark_running(merged, comfyui_dir)
     )
-    _print_installed_custom_nodes_table(merged.merged_custom_nodes, custom_nodes_dir)
+    _print_installed_custom_nodes_table(merged.merged_custom_nodes, custom_nodes_dir, node_failures)
 
     print_rule("Files")
     file_failures = install_files(
