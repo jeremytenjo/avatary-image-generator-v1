@@ -228,8 +228,8 @@ def _print_resource_summary(
     print_rule("Summary")
     tables: list[Table] = []
 
-    nodes_default = Table(title="Custom Nodes (default resources)")
-    nodes_default.add_column("Repo Dir")
+    nodes_default = Table()
+    nodes_default.add_column("Custom Nodes (default resources)")
     nodes_default.add_column("Status")
     if merged.default_custom_nodes:
         for node in merged.default_custom_nodes:
@@ -239,8 +239,8 @@ def _print_resource_summary(
         nodes_default.add_row("(none)", "-")
     tables.append(nodes_default)
 
-    nodes_project = Table(title="Custom Nodes (project manifest)")
-    nodes_project.add_column("Repo Dir")
+    nodes_project = Table()
+    nodes_project.add_column("Custom Nodes (project manifest)")
     nodes_project.add_column("Status")
     if merged.project_custom_nodes:
         for node in merged.project_custom_nodes:
@@ -250,8 +250,8 @@ def _print_resource_summary(
         nodes_project.add_row("(none)", "-")
     tables.append(nodes_project)
 
-    files_default = Table(title="Files (default resources)")
-    files_default.add_column("Target", overflow="fold")
+    files_default = Table()
+    files_default.add_column("Files (default resources)", overflow="fold")
     files_default.add_column("Status")
     if merged.default_files:
         for spec in merged.default_files:
@@ -261,8 +261,8 @@ def _print_resource_summary(
         files_default.add_row("(none)", "-")
     tables.append(files_default)
 
-    files_project = Table(title="Files (project manifest)")
-    files_project.add_column("Target", overflow="fold")
+    files_project = Table()
+    files_project.add_column("Files (project manifest)", overflow="fold")
     files_project.add_column("Status")
     if merged.project_files:
         for spec in merged.project_files:
