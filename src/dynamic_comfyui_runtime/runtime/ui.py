@@ -15,13 +15,13 @@ from rich.traceback import install as install_rich_traceback
 
 _THEME = Theme(
     {
-        "info": "cyan",
-        "success": "green",
-        "warning": "yellow",
-        "error": "bold red",
-        "muted": "dim",
+        "info": "default",
+        "success": "default",
+        "warning": "default",
+        "error": "default",
+        "muted": "default",
         "url": "bright_blue underline",
-        "phase": "bold magenta",
+        "phase": "default",
     }
 )
 
@@ -61,7 +61,7 @@ def print_error(message: str) -> None:
 
 
 def print_rule(title: str) -> None:
-    _console.print(Rule(f"[phase]{title}[/]"))
+    _console.print(Rule(title, style="default"))
 
 
 def print_panel(message: str, *, title: str | None = None, style: str = "info") -> None:
@@ -70,7 +70,7 @@ def print_panel(message: str, *, title: str | None = None, style: str = "info") 
 
 @contextmanager
 def status(message: str, *, spinner: str = "dots") -> Iterator[None]:
-    with _console.status(f"[info]{message}[/]", spinner=spinner):
+    with _console.status(message, spinner=spinner):
         yield
 
 

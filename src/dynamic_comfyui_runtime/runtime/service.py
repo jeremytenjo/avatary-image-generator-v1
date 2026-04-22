@@ -256,8 +256,7 @@ def _wait_for_comfyui_ready(metric_start: int) -> list[str]:
             startup_time = f"{minutes}m {seconds}s" if minutes else f"{elapsed}s"
             runpod_url = resolve_runpod_proxy_url(8188)
             gui_url = runpod_url if runpod_url else "http://127.0.0.1:8188"
-            blue_gui_url = f"\033[34m{gui_url}\033[0m"
-            startup_lines.append(f"🚀 ComfyUI running: {blue_gui_url} ({startup_time})")
+            startup_lines.append(f"ComfyUI running: [url]{gui_url}[/] ({startup_time})")
             return startup_lines
         print("ComfyUI starting...")
         time.sleep(2)

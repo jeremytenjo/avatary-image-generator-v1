@@ -139,8 +139,7 @@ def _parse_manifest(path: Path) -> ManifestData:
         try:
             validate_manifest_url(project_url)
         except Exception as exc:
-            red_project_url = f"\033[31m'{project_url}'\033[0m"
-            print_warning(f"Warning: skipping invalid import_projects[{idx}].project_url {red_project_url} ({exc})")
+            print_warning(f"Warning: skipping invalid import_projects[{idx}].project_url '{project_url}' ({exc})")
             continue
         import_projects.append(ImportProject(project_url=project_url))
 
@@ -203,8 +202,7 @@ def resolve_default_manifest(package_json_path: Path, temp_dir: Path) -> Path:
         try:
             download_file(default_url, candidate)
             if candidate.is_file() and candidate.stat().st_size > 0:
-                blue_default_url = f"\033[34m{default_url}\033[0m"
-                print_info(f"Loaded remote default resources manifest: {blue_default_url}")
+                print_info(f"Loaded remote default resources manifest: [url]{default_url}[/]")
                 return candidate
         except Exception as exc:
             print_warning(f"Warning: failed to download remote default resources manifest: {default_url} ({exc})")

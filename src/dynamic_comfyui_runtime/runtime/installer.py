@@ -4,7 +4,6 @@ import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
-import re
 from threading import Lock
 
 from rich.progress import BarColumn, DownloadColumn, Progress, TaskID, TextColumn, TimeElapsedColumn, TransferSpeedColumn
@@ -126,7 +125,7 @@ def install_files(
             f"available={format_size_for_display(free_bytes)}"
         )
         preflight_table = Table(title="Download Preflight", show_lines=False)
-        preflight_table.add_column("Target", style="info", overflow="fold")
+        preflight_table.add_column("Target", overflow="fold")
         preflight_table.add_column("Remote Size", justify="right")
         preflight_table.add_column("Known", justify="center")
         for target, size_display, known in preflight_rows:
@@ -151,11 +150,6 @@ def install_files(
     progress_lock = Lock()
     reservation_lock = Lock()
     reserved_known_bytes = 0
-    url_pattern = re.compile(r"https?://\S+")
-
-    def _colorize_urls_red(text: str) -> str:
-        return url_pattern.sub(lambda m: f"\033[31m{m.group(0)}\033[0m", text)
-
     def _process_file(file_spec: FileSpec, progress: Progress, task_id: TaskID) -> FileInstallFailure | None:
         nonlocal reserved_known_bytes
         target_path = comfyui_dir / file_spec.target
@@ -207,7 +201,7 @@ def install_files(
     futures: dict = {}
     with Progress(
         TextColumn("{task.description}"),
-        BarColumn(),
+        BarColumn(style="default", complete_style="default", finished_style="default", pulse_style="default"),
         DownloadColumn(),
         TransferSpeedColumn(),
         TimeElapsedColumn(),
@@ -237,25 +231,25 @@ def install_files(
             file_spec, task_id = futures[future]
             completed_downloads += 1
             remaining_downloads = total_downloads - completed_downloads
-            blue_remaining = f"\033[34m(remaining {remaining_downloads})\033[0m"
+            remaining_label = f"(remaining {remaining_downloads})"
             failure = future.result()
             if failure is not None:
                 failures.append(failure)
                 progress.update(task_id, visible=False)
-                print_error(f"Failed to download {file_spec.target}: {_colorize_urls_red(failure.error)}")
-                print_info(f"Download progress: {blue_remaining}")
+                print_error(f"Failed to download {file_spec.target}: {failure.error}")
+                print_info(f"Download progress: {remaining_label}")
             else:
                 task = progress.tasks[task_id]
                 progress_snapshots[file_spec.target] = (int(task.completed), int(task.total) if task.total else None)
                 progress.update(task_id, visible=False)
-                print_success(f"Downloaded {file_spec.target} {blue_remaining}")
+                print_success(f"Downloaded {file_spec.target} {remaining_label}")
             progress.advance(overall_task_id, 1)
             if on_progress:
                 on_progress()
 
     if failures:
         snapshot_table = Table(title="Failed Download Progress Snapshot")
-        snapshot_table.add_column("Target", style="info", overflow="fold")
+        snapshot_table.add_column("Target", overflow="fold")
         snapshot_table.add_column("Progress", justify="right")
         for failure in failures:
             completed, total = progress_snapshots.get(failure.target, (0, None))
