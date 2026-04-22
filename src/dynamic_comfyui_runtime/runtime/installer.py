@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
 
-from rich.progress import BarColumn, DownloadColumn, Progress, TaskID, TextColumn, TimeElapsedColumn, TransferSpeedColumn
+from rich.progress import BarColumn, DownloadColumn, Progress, TaskID, TextColumn
 from rich.table import Table
 
 from .common import download_file, effective_free_bytes, format_size_for_display, probe_remote_file_size, run
@@ -97,8 +97,12 @@ def install_files(
         return []
 
     files_to_download: list[FileSpec] = []
+    seen_targets: set[str] = set()
     for file_spec in files:
         target_path = comfyui_dir / file_spec.target
+        if file_spec.target in seen_targets:
+            continue
+        seen_targets.add(file_spec.target)
         if not target_path.is_file():
             files_to_download.append(file_spec)
 
@@ -198,8 +202,6 @@ def install_files(
         TextColumn("{task.description}"),
         BarColumn(style="default", complete_style="default", finished_style="default", pulse_style="default"),
         DownloadColumn(),
-        TransferSpeedColumn(),
-        TimeElapsedColumn(),
         transient=is_interactive_terminal(),
     ) as progress, ThreadPoolExecutor(max_workers=5) as executor:
         for file_spec in files_to_download:
