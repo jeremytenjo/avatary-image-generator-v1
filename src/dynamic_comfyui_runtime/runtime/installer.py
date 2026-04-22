@@ -107,16 +107,16 @@ def install_files(
         required_known_bytes = 0
         known_sizes_by_target: dict[str, int] = {}
         unknown_size_targets: list[str] = []
-        preflight_rows: list[tuple[str, str, str]] = []
+        preflight_rows: list[tuple[str, str]] = []
         for file_spec in files_to_download:
             size = probe_remote_file_size(file_spec.url, hf_token=hf_token)
             if size is None:
                 unknown_size_targets.append(file_spec.target)
-                preflight_rows.append((file_spec.target, "Unknown", "Unknown"))
+                preflight_rows.append((file_spec.target, "unknown"))
                 continue
             known_sizes_by_target[file_spec.target] = size
             required_known_bytes += size
-            preflight_rows.append((file_spec.target, format_size_for_display(size), "Yes"))
+            preflight_rows.append((file_spec.target, format_size_for_display(size)))
 
         free_bytes = effective_free_bytes(comfyui_dir)
         print_info(
@@ -127,9 +127,8 @@ def install_files(
         preflight_table = Table(title="Download Preflight", show_lines=False)
         preflight_table.add_column("Target", overflow="fold")
         preflight_table.add_column("Remote Size", justify="right")
-        preflight_table.add_column("Known", justify="center")
-        for target, size_display, known in preflight_rows:
-            preflight_table.add_row(target, size_display, known)
+        for target, remote_size in preflight_rows:
+            preflight_table.add_row(target, remote_size)
         console().print(preflight_table)
         if required_known_bytes > free_bytes:
             raise RuntimeError(
@@ -207,16 +206,7 @@ def install_files(
         TimeElapsedColumn(),
         transient=is_interactive_terminal(),
     ) as progress, ThreadPoolExecutor(max_workers=5) as executor:
-        overall_task_id = progress.add_task("Overall download completion", total=len(files))
-        for idx, file_spec in enumerate(files, start=1):
-            target_path = comfyui_dir / file_spec.target
-            print(f"[{idx}/{len(files)}] Processing {file_spec.target}")
-            if target_path.is_file():
-                print_info(f"File already exists, skipping: {file_spec.target}")
-                progress.advance(overall_task_id, 1)
-                if on_progress:
-                    on_progress()
-                continue
+        for file_spec in files_to_download:
             initial_total = known_sizes_by_target.get(file_spec.target)
             task_id = progress.add_task(
                 f"Downloading {file_spec.target}",
@@ -243,7 +233,6 @@ def install_files(
                 progress_snapshots[file_spec.target] = (int(task.completed), int(task.total) if task.total else None)
                 progress.update(task_id, visible=False)
                 print_success(f"Downloaded {file_spec.target} {remaining_label}")
-            progress.advance(overall_task_id, 1)
             if on_progress:
                 on_progress()
 
