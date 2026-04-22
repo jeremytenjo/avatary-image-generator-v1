@@ -155,23 +155,26 @@ def install_files(
         required_known_bytes = 0
         known_sizes_by_target: dict[str, int] = {}
         unknown_size_targets: list[str] = []
-        preflight_rows: list[tuple[str, str]] = []
+        preflight_rows: list[tuple[str, str, int | None]] = []
         for file_spec in files_to_download:
             size = probe_remote_file_size(file_spec.url, hf_token=hf_token)
             if size is None:
                 unknown_size_targets.append(file_spec.target)
-                preflight_rows.append((file_spec.target, "unknown"))
+                preflight_rows.append((file_spec.target, "unknown", None))
                 continue
             known_sizes_by_target[file_spec.target] = size
             required_known_bytes += size
-            preflight_rows.append((file_spec.target, format_size_for_display(size)))
+            preflight_rows.append((file_spec.target, format_size_for_display(size), size))
+
+        # Keep known sizes first, largest to smallest; unknown sizes are listed last.
+        preflight_rows.sort(key=lambda row: (row[2] is None, -(row[2] or 0), row[0]))
 
         free_bytes = effective_free_bytes(comfyui_dir)
         print_info(f"Storage preflight: known required={format_size_for_display(required_known_bytes)}")
         preflight_table = Table(show_lines=False)
         preflight_table.add_column("Download Preflight", overflow="fold")
         preflight_table.add_column("Remote Size", justify="right")
-        for target, remote_size in preflight_rows:
+        for target, remote_size, _size_bytes in preflight_rows:
             preflight_table.add_row(target, remote_size)
         console().print(preflight_table)
         if required_known_bytes > free_bytes:
