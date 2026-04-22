@@ -11,7 +11,7 @@ from rich.table import Table
 
 from .common import download_file, effective_free_bytes, format_size_for_display, probe_remote_file_size, run
 from .manifests import CustomNode, FileSpec
-from .ui import console, is_interactive_terminal, print_error, print_info, print_success, print_warning, status
+from .ui import console, is_interactive_terminal, print_error, print_info, print_success, print_warning
 
 
 @dataclass(frozen=True)
@@ -35,53 +35,67 @@ def install_custom_nodes(
         return []
 
     failures: list[NodeInstallFailure] = []
-    for idx, node in enumerate(custom_nodes, start=1):
-        print_info(f"[{idx}/{len(custom_nodes)}] Ensuring git node {node.repo_dir}")
-        node_path = custom_nodes_dir / node.repo_dir
-        if node_path.is_dir():
-            print_info(f"Custom node already installed, skipping: {node.repo_dir}")
-            if on_progress:
-                on_progress()
-            continue
+    with Progress(
+        TextColumn("{task.description}"),
+        BarColumn(style="default", complete_style="default", finished_style="default", pulse_style="default"),
+        TextColumn("{task.completed:.0f}/{task.total:.0f}"),
+        transient=is_interactive_terminal(),
+    ) as progress:
+        overall_task_id = progress.add_task("Custom node setup", total=len(custom_nodes))
+        for node in custom_nodes:
+            node_path = custom_nodes_dir / node.repo_dir
+            node_task_id = progress.add_task(f"{node.repo_dir}", total=3)
+            if node_path.is_dir():
+                progress.update(node_task_id, completed=3)
+                progress.advance(overall_task_id, 1)
+                if on_progress:
+                    on_progress()
+                continue
 
-        if node_path.exists():
-            shutil.rmtree(node_path)
-        try:
-            with status(f"Cloning {node.repo_dir}..."):
+            if node_path.exists():
+                shutil.rmtree(node_path)
+            try:
                 run(["git", "clone", node.repo, str(node_path)])
-        except Exception as exc:
-            failures.append(NodeInstallFailure(repo_dir=node.repo_dir, step="git clone", error=str(exc)))
-            print_error(f"Failed to clone custom node {node.repo_dir}: {exc}")
+                progress.advance(node_task_id, 1)
+            except Exception as exc:
+                failures.append(NodeInstallFailure(repo_dir=node.repo_dir, step="git clone", error=str(exc)))
+                print_error(f"Failed to clone custom node {node.repo_dir}: {exc}")
+                progress.update(node_task_id, completed=3)
+                progress.advance(overall_task_id, 1)
+                if on_progress:
+                    on_progress()
+                continue
+
+            requirements = node_path / "requirements.txt"
+            if requirements.is_file():
+                try:
+                    run(["python3", "-m", "pip", "install", "--no-cache-dir", "-r", str(requirements)])
+                except Exception as exc:
+                    failures.append(NodeInstallFailure(repo_dir=node.repo_dir, step="requirements install", error=str(exc)))
+                    print_error(f"Failed to install requirements for {node.repo_dir}: {exc}")
+                    progress.update(node_task_id, completed=3)
+                    progress.advance(overall_task_id, 1)
+                    if on_progress:
+                        on_progress()
+                    continue
+            progress.advance(node_task_id, 1)
+
+            install_py = node_path / "install.py"
+            if install_py.is_file():
+                try:
+                    run(["python3", "install.py"], cwd=node_path)
+                except Exception as exc:
+                    failures.append(NodeInstallFailure(repo_dir=node.repo_dir, step="install.py", error=str(exc)))
+                    print_error(f"Failed to run install.py for {node.repo_dir}: {exc}")
+                    progress.update(node_task_id, completed=3)
+                    progress.advance(overall_task_id, 1)
+                    if on_progress:
+                        on_progress()
+                    continue
+            progress.advance(node_task_id, 1)
+            progress.advance(overall_task_id, 1)
             if on_progress:
                 on_progress()
-            continue
-
-        requirements = node_path / "requirements.txt"
-        if requirements.is_file():
-            try:
-                with status(f"Installing requirements for {node.repo_dir}..."):
-                    run(["python3", "-m", "pip", "install", "--no-cache-dir", "-r", str(requirements)])
-            except Exception as exc:
-                failures.append(NodeInstallFailure(repo_dir=node.repo_dir, step="requirements install", error=str(exc)))
-                print_error(f"Failed to install requirements for {node.repo_dir}: {exc}")
-                if on_progress:
-                    on_progress()
-                continue
-
-        install_py = node_path / "install.py"
-        if install_py.is_file():
-            try:
-                with status(f"Running install.py for {node.repo_dir}..."):
-                    run(["python3", "install.py"], cwd=node_path)
-            except Exception as exc:
-                failures.append(NodeInstallFailure(repo_dir=node.repo_dir, step="install.py", error=str(exc)))
-                print_error(f"Failed to run install.py for {node.repo_dir}: {exc}")
-                if on_progress:
-                    on_progress()
-                continue
-
-        if on_progress:
-            on_progress()
     return failures
 
 
