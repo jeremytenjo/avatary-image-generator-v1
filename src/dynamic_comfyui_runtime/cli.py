@@ -110,7 +110,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     for cmd in (
         "install",
-        "remove-deps",
         "start-new-project",
         "add-project",
         "replace-project",
