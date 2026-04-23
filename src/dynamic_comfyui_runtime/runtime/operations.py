@@ -371,6 +371,7 @@ def _print_install_plan_preview(merged: MergedManifest, custom_nodes_dir: Path, 
     planned_files.add_column("Size", justify="right")
     seen_targets: set[str] = set()
     pending_file_rows = 0
+    file_rows: list[tuple[str, str, str, int | None]] = []
     for specs in (merged.default_files, merged.project_files):
         for spec in specs:
             normalized_target = Path(spec.target).as_posix()
@@ -381,8 +382,11 @@ def _print_install_plan_preview(merged: MergedManifest, custom_nodes_dir: Path, 
                 continue
             remote_size = probe_remote_file_size(spec.url, hf_token=hf_token)
             size_display = format_size_for_display(remote_size) if remote_size and remote_size > 0 else "unknown"
-            planned_files.add_row(normalized_target, spec.url, size_display)
+            file_rows.append((normalized_target, spec.url, size_display, remote_size if remote_size and remote_size > 0 else None))
             pending_file_rows += 1
+    file_rows.sort(key=lambda row: (row[3] is None, -(row[3] or 0), row[0]))
+    for target, source, size_display, _size_bytes in file_rows:
+        planned_files.add_row(target, source, size_display)
     if pending_file_rows > 0:
         console().print(planned_files)
 
