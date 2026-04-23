@@ -202,7 +202,7 @@ def _load_manifest_context(
             title="Hugging Face Token Required",
             style="warning",
         )
-        token = prompt_text("Enter your Hugging Face token", password=True).strip()
+        token = prompt_text("Enter your Hugging Face token").strip()
         if not token:
             raise RuntimeError("Hugging Face token is required by this project manifest")
         hf_token = token
@@ -254,7 +254,7 @@ def _retry_hf_401_file_downloads(
         title="Hugging Face Token Required",
         style="warning",
     )
-    retry_token = prompt_text("Enter your Hugging Face token", password=True).strip()
+    retry_token = prompt_text("Enter your Hugging Face token").strip()
     if not retry_token:
         print_warning("No Hugging Face token provided. Keeping original 401 failures.")
         return file_failures
@@ -358,7 +358,7 @@ def _ensure_hf_token_for_pending_downloads(
         title="Hugging Face Token Required",
         style="warning",
     )
-    token = prompt_text("Enter your Hugging Face token", password=True).strip()
+    token = prompt_text("Enter your Hugging Face token").strip()
     if not token:
         raise RuntimeError("Hugging Face token is required for one or more pending model downloads")
     return token
@@ -378,9 +378,8 @@ def _print_install_plan_preview(merged: MergedManifest, custom_nodes_dir: Path, 
                 continue
             planned_nodes.add_row(node.repo_dir, node.repo, "-")
             pending_node_rows += 1
-    if pending_node_rows == 0:
-        planned_nodes.add_row("(none)", "-", "-")
-    console().print(planned_nodes)
+    if pending_node_rows > 0:
+        console().print(planned_nodes)
 
     planned_files = Table()
     planned_files.add_column("File", overflow="fold")
@@ -400,9 +399,8 @@ def _print_install_plan_preview(merged: MergedManifest, custom_nodes_dir: Path, 
             size_display = format_size_for_display(remote_size) if remote_size and remote_size > 0 else "unknown"
             planned_files.add_row(normalized_target, spec.url, size_display)
             pending_file_rows += 1
-    if pending_file_rows == 0:
-        planned_files.add_row("(none)", "-", "-")
-    console().print(planned_files)
+    if pending_file_rows > 0:
+        console().print(planned_files)
 
 
 def _print_resource_summary(
