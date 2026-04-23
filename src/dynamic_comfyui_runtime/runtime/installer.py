@@ -284,8 +284,14 @@ def install_files(
             else:
                 completed, total = progress_snapshots.get(file_spec.target, (0, None))
                 if total and total > 0:
+                    percent = int((completed * 100) / total) if total > 0 else 0
+                    if completed < total:
+                        print_warning(
+                            f"[download] {file_spec.target}: Warning: incomplete download "
+                            f"({format_size_for_display(completed)}/{format_size_for_display(total)})"
+                        )
                     print_success(
-                        f"[download] {file_spec.target}: 100% "
+                        f"[download] {file_spec.target}: {percent}% "
                         f"({format_size_for_display(completed)}/{format_size_for_display(total)}) completed {remaining_label}"
                     )
                 else:
