@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import tempfile
+import urllib.parse
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,6 +18,7 @@ from .installer import (
     remove_project_resources,
 )
 from .manifests import (
+    FileSpec,
     MergedManifest,
     active_project_manifest_path,
     download_manifest,
@@ -218,6 +222,148 @@ def _print_failures(node_failures: list[NodeInstallFailure], file_failures: list
             print_error(f" - {failure.target} ({failure.error})")
 
 
+def _retry_hf_401_file_downloads(
+    merged: MergedManifest,
+    comfyui_dir: Path,
+    file_failures: list[FileInstallFailure],
+    *,
+    on_progress: callable | None = None,
+) -> list[FileInstallFailure]:
+    if not file_failures:
+        return file_failures
+
+    spec_by_target: dict[str, FileSpec] = {Path(spec.target).as_posix(): spec for spec in merged.merged_files}
+
+    def _is_hf_401(target: str, error: str) -> bool:
+        spec = spec_by_target.get(Path(target).as_posix())
+        if spec is None:
+            return False
+        host = urllib.parse.urlparse(spec.url).netloc.lower()
+        if "huggingface.co" not in host:
+            return False
+        return "(401)" in error or " 401" in error or "401 " in error
+
+    hf_401_failures = [failure for failure in file_failures if _is_hf_401(failure.target, failure.error)]
+    if not hf_401_failures:
+        return file_failures
+
+    print_panel(
+        "Some model downloads returned HTTP 401 from Hugging Face.\n"
+        "Enter a Hugging Face token to retry the failed downloads.\n"
+        "Create one at: [url]https://huggingface.co/settings/tokens[/].",
+        title="Hugging Face Token Required",
+        style="warning",
+    )
+    retry_token = prompt_text("Enter your Hugging Face token", password=True).strip()
+    if not retry_token:
+        print_warning("No Hugging Face token provided. Keeping original 401 failures.")
+        return file_failures
+
+    retry_specs: list[FileSpec] = []
+    seen_targets: set[str] = set()
+    for failure in hf_401_failures:
+        key = Path(failure.target).as_posix()
+        if key in seen_targets:
+            continue
+        spec = spec_by_target.get(key)
+        if spec is None:
+            continue
+        retry_specs.append(spec)
+        seen_targets.add(key)
+
+    if not retry_specs:
+        return file_failures
+
+    print_rule("Retry Failed Hugging Face Downloads")
+    retry_failures = install_files(
+        retry_specs,
+        comfyui_dir,
+        hf_token=retry_token,
+        on_progress=on_progress,
+    )
+
+    retried_targets = {Path(spec.target).as_posix() for spec in retry_specs}
+    remaining_failures = [failure for failure in file_failures if Path(failure.target).as_posix() not in retried_targets]
+    return sorted([*remaining_failures, *retry_failures], key=lambda item: item.target)
+
+
+def _pending_files_for_download(merged: MergedManifest, comfyui_dir: Path) -> list[FileSpec]:
+    pending: list[FileSpec] = []
+    seen_targets: set[str] = set()
+    for spec in merged.merged_files:
+        normalized_target = Path(spec.target).as_posix()
+        if normalized_target in seen_targets:
+            continue
+        seen_targets.add(normalized_target)
+        if (comfyui_dir / normalized_target).is_file():
+            continue
+        pending.append(FileSpec(url=spec.url, target=normalized_target))
+    return pending
+
+
+def _hf_url_requires_token(url: str) -> bool:
+    headers = {
+        "Accept": "*/*",
+        "User-Agent": "dynamic-comfyui-runtime-downloader/1.0",
+    }
+    try:
+        head_req = urllib.request.Request(url, headers=headers, method="HEAD")
+        with urllib.request.urlopen(head_req, timeout=20):  # noqa: S310
+            return False
+    except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            return True
+    except Exception:
+        pass
+
+    try:
+        range_headers = dict(headers)
+        range_headers["Range"] = "bytes=0-0"
+        get_req = urllib.request.Request(url, headers=range_headers, method="GET")
+        with urllib.request.urlopen(get_req, timeout=20):  # noqa: S310
+            return False
+    except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _ensure_hf_token_for_pending_downloads(
+    merged: MergedManifest,
+    comfyui_dir: Path,
+    hf_token: str | None,
+) -> str | None:
+    if hf_token:
+        return hf_token
+
+    pending_files = _pending_files_for_download(merged, comfyui_dir)
+    hf_urls = []
+    for spec in pending_files:
+        host = urllib.parse.urlparse(spec.url).netloc.lower()
+        if "huggingface.co" in host:
+            hf_urls.append(spec.url)
+    if not hf_urls:
+        return None
+
+    requires_token = any(_hf_url_requires_token(url) for url in hf_urls)
+    if not requires_token:
+        return None
+
+    print_panel(
+        "One or more pending model downloads returned HTTP 401 from Hugging Face.\n"
+        "Enter a Hugging Face token once; it will be reused for all required downloads.\n"
+        "Create one at: [url]https://huggingface.co/settings/tokens[/].",
+        title="Hugging Face Token Required",
+        style="warning",
+    )
+    token = prompt_text("Enter your Hugging Face token", password=True).strip()
+    if not token:
+        raise RuntimeError("Hugging Face token is required for one or more pending model downloads")
+    return token
+
+
 def _print_install_plan_preview(merged: MergedManifest, custom_nodes_dir: Path, comfyui_dir: Path, hf_token: str | None) -> None:
     print_rule("Install Plan")
 
@@ -345,6 +491,7 @@ def _execute_dependency_install(
             project_manifest_path,
             default_manifest_path=default_manifest_path,
         )
+    hf_token = _ensure_hf_token_for_pending_downloads(merged, comfyui_dir, hf_token)
     _print_install_plan_preview(merged, custom_nodes_dir, comfyui_dir, hf_token)
     mark_running(merged, comfyui_dir)
 
@@ -362,6 +509,12 @@ def _execute_dependency_install(
     print_rule("Files")
     file_failures = install_files(
         merged.merged_files, comfyui_dir, hf_token=hf_token, on_progress=lambda: mark_running(merged, comfyui_dir)
+    )
+    file_failures = _retry_hf_401_file_downloads(
+        merged,
+        comfyui_dir,
+        file_failures,
+        on_progress=lambda: mark_running(merged, comfyui_dir),
     )
 
     return InstallExecution(
