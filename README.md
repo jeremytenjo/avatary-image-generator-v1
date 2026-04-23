@@ -33,7 +33,7 @@ Define project manifests (custom nodes + files) for repeatable ComfyUI setup on 
 
 - `dc update-nodes-and-models`
   Re-download last saved project manifest (or defaults-only if empty), refresh nodes/files, then restart ComfyUI.
-  If `require_huggingface_token: true`, you will be prompted for a token again.
+  If any pending Hugging Face model download returns `401`, you will be prompted once for a token and it will be reused for all required downloads in that run.
 
 - `dc restart`
   Restart ComfyUI service.
@@ -110,7 +110,6 @@ Example (`<URL>.json`):
 
 ```json
 {
-  "require_huggingface_token": false,
   "import_projects": [
     {
       "project_url": "https://example.com/base-workflow.json"
@@ -143,28 +142,11 @@ Import behavior:
 - Failed imports are skipped with a warning.
 - Later imports override earlier imports for duplicate `custom_nodes.repo_dir` and `files.target`.
 - Top-level project manifest entries override all imported entries.
-- `require_huggingface_token` is treated as `true` if the top-level or any successfully imported manifest sets it to `true`.
 
-### Optional Hugging Face Token
+### Hugging Face Token Handling
 
-Project manifests can require a Hugging Face token for file downloads:
+If pending Hugging Face model downloads return `401 Unauthorized`, the installer prompts for a token once and reuses it for all required downloads in that run.
 
-```json
-{
-  "require_huggingface_token": true,
-  "files": [
-    {
-      "url": "https://huggingface.co/example/private-model/resolve/main/model.safetensors",
-      "target": "models/checkpoints/model.safetensors"
-    }
-  ]
-}
-```
-
-When `require_huggingface_token` is `true`:
-
-- The installer prompts for a Hugging Face token before installation.
-- If the token is empty, installation stops immediately.
 - The token is used only for that run and is not saved.
 - Create a token at: https://huggingface.co/settings/tokens
 

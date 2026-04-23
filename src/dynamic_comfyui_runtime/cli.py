@@ -77,7 +77,7 @@ def _help_text() -> str:
 
 - dc update-nodes-and-models
   Re-download the last saved JSON URL (or refresh defaults-only if URL is empty), refresh nodes/files, and restart ComfyUI.
-  If the manifest sets require_huggingface_token=true, this command prompts for a token each run.
+  If any pending Hugging Face model download returns 401, this command prompts once for a token and reuses it for all required downloads.
   Create a token at: https://huggingface.co/settings/tokens
 
 - dc restart

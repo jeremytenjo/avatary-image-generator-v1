@@ -25,7 +25,6 @@ from .manifests import (
     load_project_state,
     merge_manifests,
     normalize_manifest_url,
-    project_requires_hf_token,
     resources_for_cleanup,
     resolve_default_manifest,
     save_project_state,
@@ -193,21 +192,7 @@ def _load_manifest_context(
     temp_dir = Path(tempfile.mkdtemp(prefix="dynamic-comfyui-install-manifest-"))
     resolved_default_manifest = default_manifest_path or resolve_default_manifest(ctx.package_json_path, temp_dir)
     merged = merge_manifests(project_manifest_path, resolved_default_manifest, temp_dir=temp_dir)
-
-    hf_token: str | None = None
-    if project_requires_hf_token(project_manifest_path):
-        print_panel(
-            "This project manifest requires a Hugging Face token for file downloads.\n"
-            "Create one at: [url]https://huggingface.co/settings/tokens[/].",
-            title="Hugging Face Token Required",
-            style="warning",
-        )
-        token = prompt_text("Enter your Hugging Face token").strip()
-        if not token:
-            raise RuntimeError("Hugging Face token is required by this project manifest")
-        hf_token = token
-
-    return merged, hf_token
+    return merged, None
 
 
 def _print_failures(node_failures: list[NodeInstallFailure], file_failures: list[FileInstallFailure]) -> None:

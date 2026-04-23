@@ -32,7 +32,6 @@ class ImportProject:
 
 @dataclass(frozen=True)
 class ManifestData:
-    require_hf_token: bool
     custom_nodes: list[CustomNode]
     files: list[FileSpec]
     import_projects: list[ImportProject]
@@ -82,9 +81,6 @@ def _local_default_manifest_path(package_json_path: Path) -> Path | None:
 
 def _parse_manifest(path: Path) -> ManifestData:
     data = read_json(path)
-    require_value = data.get("require_huggingface_token", False)
-    if not isinstance(require_value, bool):
-        raise ValueError("Manifest field 'require_huggingface_token' must be a boolean")
 
     raw_nodes = data.get("custom_nodes", [])
     if raw_nodes is None:
@@ -144,7 +140,6 @@ def _parse_manifest(path: Path) -> ManifestData:
         import_projects.append(ImportProject(project_url=project_url))
 
     return ManifestData(
-        require_hf_token=require_value,
         custom_nodes=nodes,
         files=files,
         import_projects=import_projects,
@@ -259,10 +254,8 @@ def _resolved_project_manifest(project_manifest_path: Path, temp_dir: Path) -> M
 
     merged_nodes_map: dict[str, CustomNode] = {}
     merged_files_map: dict[str, FileSpec] = {}
-    require_hf_token = root.require_hf_token
 
     for manifest in imported:
-        require_hf_token = require_hf_token or manifest.require_hf_token
         for node in manifest.custom_nodes:
             merged_nodes_map[node.repo_dir] = node
         for file_spec in manifest.files:
@@ -274,7 +267,6 @@ def _resolved_project_manifest(project_manifest_path: Path, temp_dir: Path) -> M
         merged_files_map[file_spec.target] = file_spec
 
     return ManifestData(
-        require_hf_token=require_hf_token,
         custom_nodes=list(merged_nodes_map.values()),
         files=list(merged_files_map.values()),
         import_projects=root.import_projects,
@@ -306,11 +298,6 @@ def merge_manifests(project_manifest_path: Path, default_manifest_path: Path, *,
         default_files=default.files,
         project_files=project.files,
     )
-
-
-def project_requires_hf_token(project_manifest_path: Path) -> bool:
-    temp_dir = Path(tempfile.mkdtemp(prefix="dynamic-comfyui-import-projects-"))
-    return _resolved_project_manifest(project_manifest_path, temp_dir).require_hf_token
 
 
 def resources_for_cleanup(project_manifest_path: Path) -> tuple[list[str], list[str]]:
