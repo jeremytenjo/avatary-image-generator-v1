@@ -42,7 +42,7 @@ def install_custom_nodes(
         if node_path.is_dir():
             completed_nodes += 1
             remaining_nodes = total_nodes - completed_nodes
-            print_info(
+            print_success(
                 f"{node_prefix} {node.repo_dir}: already installed "
                 f"({completed_nodes}/{total_nodes} complete, remaining {remaining_nodes})"
             )
