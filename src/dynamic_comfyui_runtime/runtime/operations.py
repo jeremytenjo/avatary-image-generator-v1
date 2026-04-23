@@ -6,7 +6,7 @@ from pathlib import Path
 
 from rich.table import Table
 
-from .common import ensure_dir, format_size_for_display, now_epoch, require_tools, utc_timestamp
+from .common import ensure_dir, format_size_for_display, now_epoch, probe_remote_file_size, require_tools, utc_timestamp
 from .installer import (
     FileInstallFailure,
     NodeInstallFailure,
@@ -218,6 +218,47 @@ def _print_failures(node_failures: list[NodeInstallFailure], file_failures: list
             print_error(f" - {failure.target} ({failure.error})")
 
 
+def _print_install_plan_preview(merged: MergedManifest, custom_nodes_dir: Path, comfyui_dir: Path, hf_token: str | None) -> None:
+    print_rule("Install Plan")
+
+    planned_nodes = Table()
+    planned_nodes.add_column("File", overflow="fold")
+    planned_nodes.add_column("Source", overflow="fold")
+    planned_nodes.add_column("Size", justify="right")
+    pending_node_rows = 0
+    for specs in (merged.default_custom_nodes, merged.project_custom_nodes):
+        for node in specs:
+            if (custom_nodes_dir / node.repo_dir).is_dir():
+                continue
+            planned_nodes.add_row(node.repo_dir, node.repo, "-")
+            pending_node_rows += 1
+    if pending_node_rows == 0:
+        planned_nodes.add_row("(none)", "-", "-")
+    console().print(planned_nodes)
+
+    planned_files = Table()
+    planned_files.add_column("File", overflow="fold")
+    planned_files.add_column("Source", overflow="fold")
+    planned_files.add_column("Size", justify="right")
+    seen_targets: set[str] = set()
+    pending_file_rows = 0
+    for specs in (merged.default_files, merged.project_files):
+        for spec in specs:
+            normalized_target = Path(spec.target).as_posix()
+            if normalized_target in seen_targets:
+                continue
+            seen_targets.add(normalized_target)
+            if (comfyui_dir / normalized_target).is_file():
+                continue
+            remote_size = probe_remote_file_size(spec.url, hf_token=hf_token)
+            size_display = format_size_for_display(remote_size) if remote_size and remote_size > 0 else "unknown"
+            planned_files.add_row(normalized_target, spec.url, size_display)
+            pending_file_rows += 1
+    if pending_file_rows == 0:
+        planned_files.add_row("(none)", "-", "-")
+    console().print(planned_files)
+
+
 def _print_resource_summary(
     merged: MergedManifest,
     custom_nodes_dir: Path,
@@ -297,6 +338,7 @@ def _execute_dependency_install(
             project_manifest_path,
             default_manifest_path=default_manifest_path,
         )
+    _print_install_plan_preview(merged, custom_nodes_dir, comfyui_dir, hf_token)
     mark_running(merged, comfyui_dir)
 
     print_rule("ComfyUI Core")
