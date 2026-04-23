@@ -355,13 +355,12 @@ def _print_install_plan_preview(merged: MergedManifest, custom_nodes_dir: Path, 
     planned_nodes = Table()
     planned_nodes.add_column("File", overflow="fold")
     planned_nodes.add_column("Source", overflow="fold")
-    planned_nodes.add_column("Size", justify="right")
     pending_node_rows = 0
     for specs in (merged.default_custom_nodes, merged.project_custom_nodes):
         for node in specs:
             if (custom_nodes_dir / node.repo_dir).is_dir():
                 continue
-            planned_nodes.add_row(node.repo_dir, node.repo, "-")
+            planned_nodes.add_row(node.repo_dir, node.repo)
             pending_node_rows += 1
     if pending_node_rows > 0:
         console().print(planned_nodes)
