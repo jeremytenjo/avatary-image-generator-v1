@@ -473,7 +473,7 @@ def _print_resource_summary(
 def _print_comfyui_link() -> None:
     runpod_url = resolve_runpod_proxy_url(8188)
     gui_url = runpod_url if runpod_url else "http://127.0.0.1:8188"
-    print_success(f"ComfyUI page: [url]{gui_url}[/]")
+    print_info(f"ComfyUI page: [url]{gui_url}[/]")
 
 
 def _execute_dependency_install(
@@ -578,7 +578,7 @@ def run_dependency_install_flow(
         execution.file_failures,
     )
     if show_completion:
-        print_success("Dependency installation complete.")
+        print_info("Dependency installation complete.")
     if show_comfyui_link:
         _print_comfyui_link()
 
@@ -677,7 +677,7 @@ def cmd_install_deps(ctx: RuntimeContext, project_urls: list[str] | None = None)
             comfyui_dir, _ = ensure_comfyui_workspace(network_volume)
             mark_failed(None, comfyui_dir, f"Dependency installation failed. {exc}")
             raise
-    print_success("Dependency installation complete.")
+    print_info("Dependency installation complete.")
     _print_comfyui_link()
 
 
