@@ -9,12 +9,19 @@ def default_manifest_url_override_path(network_volume: Path) -> Path:
     return network_volume / ".dynamic-comfyui_default_manifest_url"
 
 
-def read_default_manifest_url_override(network_volume: Path) -> str | None:
-    path = default_manifest_url_override_path(network_volume)
-    if not path.is_file():
-        return None
-    value = path.read_text(encoding="utf-8").strip()
-    return value or None
+def read_default_manifest_url_override(network_volume: Path, fallback_network_volume: Path | None = None) -> str | None:
+    candidates: list[Path] = [default_manifest_url_override_path(network_volume)]
+    if fallback_network_volume is not None:
+        fallback_path = default_manifest_url_override_path(fallback_network_volume)
+        if fallback_path not in candidates:
+            candidates.append(fallback_path)
+    for path in candidates:
+        if not path.is_file():
+            continue
+        value = path.read_text(encoding="utf-8").strip()
+        if value:
+            return value
+    return None
 
 
 def write_default_manifest_url_override(network_volume: Path, url: str) -> None:

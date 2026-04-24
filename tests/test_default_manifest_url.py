@@ -31,6 +31,16 @@ class DefaultManifestUrlTests(unittest.TestCase):
             self.assertIsNone(read_default_manifest_url_override(network_volume))
             self.assertFalse(clear_default_manifest_url_override(network_volume))
 
+    def test_read_uses_fallback_volume(self) -> None:
+        with tempfile.TemporaryDirectory() as td_primary, tempfile.TemporaryDirectory() as td_fallback:
+            primary = Path(td_primary)
+            fallback = Path(td_fallback)
+            write_default_manifest_url_override(fallback, "https://example.com/defaults.json")
+            self.assertEqual(
+                read_default_manifest_url_override(primary, fallback_network_volume=fallback),
+                "https://example.com/defaults.json",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

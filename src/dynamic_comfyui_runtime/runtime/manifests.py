@@ -163,10 +163,15 @@ def download_manifest(url: str, path: Path) -> None:
         raise RuntimeError(f"Downloaded project manifest is empty: {path}")
 
 
-def resolve_default_manifest(package_json_path: Path, temp_dir: Path, network_volume: Path) -> Path:
+def resolve_default_manifest(
+    package_json_path: Path,
+    temp_dir: Path,
+    network_volume: Path,
+    fallback_network_volume: Path | None = None,
+) -> Path:
     _ = package_json_path
     ensure_dir(temp_dir)
-    default_url = read_default_manifest_url_override(network_volume)
+    default_url = read_default_manifest_url_override(network_volume, fallback_network_volume=fallback_network_volume)
     if default_url:
         normalized_url = normalize_manifest_url(default_url)
         validate_manifest_url(normalized_url)
