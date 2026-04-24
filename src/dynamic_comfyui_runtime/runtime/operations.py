@@ -378,8 +378,8 @@ def _print_install_plan_preview(merged: MergedManifest, custom_nodes_dir: Path, 
     print_rule("Install Plan")
 
     planned_nodes = Table()
-    planned_nodes.add_column("Custom Node", overflow="fold")
-    planned_nodes.add_column("Source", overflow="fold")
+    planned_nodes.add_column("Custom Node", overflow="ellipsis", no_wrap=True)
+    planned_nodes.add_column("Source", overflow="ellipsis", no_wrap=True)
     pending_node_rows = 0
     for specs in (merged.default_custom_nodes, merged.project_custom_nodes):
         for node in specs:
@@ -391,8 +391,8 @@ def _print_install_plan_preview(merged: MergedManifest, custom_nodes_dir: Path, 
         console().print(planned_nodes)
 
     planned_files = Table()
-    planned_files.add_column("File", overflow="fold")
-    planned_files.add_column("Source", overflow="fold")
+    planned_files.add_column("File", overflow="ellipsis", no_wrap=True)
+    planned_files.add_column("Source", overflow="ellipsis", no_wrap=True)
     planned_files.add_column("Size", justify="right")
     seen_targets: set[str] = set()
     pending_file_rows = 0
@@ -444,8 +444,8 @@ def _print_resource_summary(
         return format_size_for_display(path.stat().st_size)
 
     nodes_table = Table()
-    nodes_table.add_column("Custom Nodes", overflow="fold")
-    nodes_table.add_column("Source", overflow="fold")
+    nodes_table.add_column("Custom Nodes", overflow="ellipsis", no_wrap=True)
+    nodes_table.add_column("Source", overflow="ellipsis", no_wrap=True)
     nodes_table.add_column("Status")
     if merged.default_custom_nodes or merged.project_custom_nodes:
         for specs in (merged.default_custom_nodes, merged.project_custom_nodes):
@@ -462,8 +462,8 @@ def _print_resource_summary(
     console().print(nodes_table)
 
     files_table = Table()
-    files_table.add_column("Files", overflow="fold")
-    files_table.add_column("Source", overflow="fold")
+    files_table.add_column("Files", overflow="ellipsis", no_wrap=True)
+    files_table.add_column("Source", overflow="ellipsis", no_wrap=True)
     files_table.add_column("Status")
     files_table.add_column("Size", justify="right")
     total_installed_bytes = 0

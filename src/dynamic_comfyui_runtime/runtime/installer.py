@@ -339,7 +339,7 @@ def install_files(
 
     if failures:
         snapshot_table = Table(title="Failed Download Progress Snapshot")
-        snapshot_table.add_column("Target", overflow="fold")
+        snapshot_table.add_column("Target", overflow="ellipsis", no_wrap=True)
         snapshot_table.add_column("Progress", justify="right")
         for failure in failures:
             completed, total = progress_snapshots.get(failure.target, (0, None))
