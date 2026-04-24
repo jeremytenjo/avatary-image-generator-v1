@@ -10,6 +10,10 @@ from pathlib import Path
 from rich.table import Table
 
 from .common import ensure_dir, format_size_for_display, now_epoch, probe_remote_file_size, require_tools, utc_timestamp
+from .default_manifest_url import (
+    clear_default_manifest_url_override,
+    write_default_manifest_url_override,
+)
 from .installer import (
     FileInstallFailure,
     NodeInstallFailure,
@@ -113,6 +117,10 @@ Run this command in the terminal to install custom nodes/files only `dynamic-com
 
 Run this command in the terminal to remove files only from project manifest URL(s) `dynamic-comfyui remove-deps <project-json-url> [project-json-url ...]`
 
+Run this command in the terminal to set your default resources manifest URL `dynamic-comfyui set-default-manifest-url <project-json-url>`
+
+Run this command in the terminal to clear your default resources manifest URL `dynamic-comfyui clear-default-manifest-url`
+
 Run this command in the terminal to update the dynamic-comfyui runtime package to latest `dynamic-comfyui update-dc`
 
 Run this command in the terminal to uninstall the dynamic-comfyui runtime package `dynamic-comfyui uninstall-dc`
@@ -187,12 +195,15 @@ def prepare_project_manifest(network_volume: Path, source_url: str) -> tuple[Pat
 
 def _load_manifest_context(
     ctx: RuntimeContext,
+    network_volume: Path,
     project_manifest_path: Path,
     *,
     default_manifest_path: Path | None = None,
 ) -> tuple[MergedManifest, str | None]:
     temp_dir = Path(tempfile.mkdtemp(prefix="dynamic-comfyui-install-manifest-"))
-    resolved_default_manifest = default_manifest_path or resolve_default_manifest(ctx.package_json_path, temp_dir)
+    resolved_default_manifest = default_manifest_path or resolve_default_manifest(
+        ctx.package_json_path, temp_dir, network_volume
+    )
     merged = merge_manifests(project_manifest_path, resolved_default_manifest, temp_dir=temp_dir)
     return merged, None
 
@@ -492,6 +503,7 @@ def _execute_dependency_install(
     with status("Loading and merging manifests..."):
         merged, hf_token = _load_manifest_context(
             ctx,
+            network_volume,
             project_manifest_path,
             default_manifest_path=default_manifest_path,
         )
@@ -660,7 +672,7 @@ def cmd_install_deps(ctx: RuntimeContext, project_urls: list[str] | None = None)
     total = len(project_urls)
     ctx.network_volume = network_volume
     shared_manifest_temp_dir = Path(tempfile.mkdtemp(prefix="dynamic-comfyui-install-default-manifest-"))
-    shared_default_manifest_path = resolve_default_manifest(ctx.package_json_path, shared_manifest_temp_dir)
+    shared_default_manifest_path = resolve_default_manifest(ctx.package_json_path, shared_manifest_temp_dir, network_volume)
     for index, project_url in enumerate(project_urls, start=1):
         manifest_path, source_url = prepare_project_manifest(network_volume, project_url)
         print_info(f"Installing dependencies for project [{index}/{total}]: [url]{source_url}[/]")
@@ -716,6 +728,25 @@ def cmd_remove_deps(ctx: RuntimeContext, project_urls: list[str] | None = None) 
                 file_path.unlink()
 
     print_success("File removal complete.")
+
+
+def cmd_set_default_manifest_url(ctx: RuntimeContext, manifest_url: str | None = None) -> None:
+    configure_process_env()
+    network_volume = set_network_volume_default(ctx.network_volume)
+    raw_url = manifest_url if manifest_url is not None else prompt_text("Enter default manifest URL").strip()
+    if not raw_url:
+        raise RuntimeError("Default manifest URL is required")
+    normalized = normalize_manifest_url(raw_url)
+    validate_manifest_url(normalized)
+    write_default_manifest_url_override(network_volume, normalized)
+    print_info(f"Set default resources manifest URL: [url]{normalized}[/]")
+
+
+def cmd_clear_default_manifest_url(ctx: RuntimeContext) -> None:
+    configure_process_env()
+    network_volume = set_network_volume_default(ctx.network_volume)
+    clear_default_manifest_url_override(network_volume)
+    print_info("Cleared default resources manifest URL. Defaults are now empty.")
 
 
 def _snapshot_previous_manifest(network_volume: Path) -> tuple[str, str, Path | None]:

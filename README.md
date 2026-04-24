@@ -23,6 +23,13 @@ Define project manifests (custom nodes + files) for repeatable ComfyUI setup on 
   Remove files listed by project manifest URL(s) only.
   Usage: `dc remove-deps <project-json-url> [project-json-url ...]` or `dc remove-deps` (prompts for URL).
 
+- `dc set-default-manifest-url`
+  Set your default resources manifest URL.
+  Usage: `dc set-default-manifest-url <manifest-json-url>` or `dc set-default-manifest-url` (prompts for URL).
+
+- `dc clear-default-manifest-url`
+  Clear your configured default resources manifest URL (defaults become empty).
+
 - `dc start`
   Enter a JSON URL (or press Enter for defaults-only), then install/start ComfyUI.
 
@@ -156,13 +163,17 @@ If pending Hugging Face model downloads return `401 Unauthorized`, the installer
 
 ## Default Resources (All Projects)
 
-Global default resources are always fetched from:
+Defaults are empty by default.
 
-- `https://github.com/jeremytenjo/dynamic-comfyui/blob/main/default-resources.json`
+To opt in to shared defaults, set a default resources manifest URL:
 
-This URL is pinned in runtime code so pip-installed builds and source checkouts behave the same.
+- `dc set-default-manifest-url <manifest-json-url>`
 
-If the remote default manifest fails to download, the runtime falls back to local `default-resources.json` in this order: same directory as `package.json`, nearest parent directory from current working directory, then `/default-resources.json`. If none is available, install continues with project resources only (defaults skipped for that run, with a warning).
+To remove it and return to empty defaults:
+
+- `dc clear-default-manifest-url`
+
+If a configured default manifest URL fails to download, install continues with project resources only for that run (with a warning).
 
 Default resources use the same schema as the project manifest format above.
 

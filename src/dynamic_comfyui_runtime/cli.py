@@ -8,11 +8,13 @@ from .runtime.ui import print_error, setup_rich_runtime
 from .runtime.operations import (
     RuntimeContext,
     cmd_add_project,
+    cmd_clear_default_manifest_url,
     cmd_install_deps,
     cmd_install,
     cmd_remove_deps,
     cmd_replace_project,
     cmd_restart,
+    cmd_set_default_manifest_url,
     cmd_stop,
     cmd_start,
     cmd_start_new_project,
@@ -66,6 +68,12 @@ def _help_text() -> str:
 - dc remove-deps
   Remove files only from project manifest URL(s). Usage: dc remove-deps [project_json_url ...]
 
+- dc set-default-manifest-url
+  Set your default resources manifest URL. Usage: dc set-default-manifest-url [manifest_json_url]
+
+- dc clear-default-manifest-url
+  Clear your configured default resources manifest URL. Defaults become empty again.
+
 - dc start
   Enter a direct JSON URL (or press Enter for defaults-only) and install/start ComfyUI.
   Usage: dc start [project_json_url]
@@ -113,6 +121,7 @@ def build_parser() -> argparse.ArgumentParser:
         "start-new-project",
         "add-project",
         "replace-project",
+        "clear-default-manifest-url",
         "update-nodes-and-models",
         "restart",
         "stop",
@@ -131,6 +140,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     remove_deps_parser = subparsers.add_parser("remove-deps")
     remove_deps_parser.add_argument("project_urls", nargs="*", default=None)
+
+    set_default_manifest_url_parser = subparsers.add_parser("set-default-manifest-url")
+    set_default_manifest_url_parser.add_argument("manifest_url", nargs="?", default=None)
     return parser
 
 
@@ -158,6 +170,7 @@ def main() -> None:
         "start-new-project": cmd_start_new_project,
         "add-project": cmd_add_project,
         "replace-project": cmd_replace_project,
+        "clear-default-manifest-url": cmd_clear_default_manifest_url,
         "update-nodes-and-models": cmd_update_nodes_and_models,
         "restart": cmd_restart,
         "stop": cmd_stop,
@@ -171,6 +184,8 @@ def main() -> None:
             cmd_install_deps(ctx, args.project_urls)
         elif args.command == "remove-deps":
             cmd_remove_deps(ctx, args.project_urls)
+        elif args.command == "set-default-manifest-url":
+            cmd_set_default_manifest_url(ctx, args.manifest_url)
         elif args.command == "start":
             cmd_start(ctx, args.project_url)
         else:

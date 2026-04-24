@@ -4,13 +4,9 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from .common import download_file, ensure_dir, find_file_upwards, normalize_github_blob_url, read_json
+from .common import download_file, ensure_dir, normalize_github_blob_url, read_json
+from .default_manifest_url import read_default_manifest_url_override
 from .ui import print_info, print_warning
-
-
-DEFAULT_RESOURCES_URL = normalize_github_blob_url(
-    "https://github.com/jeremytenjo/dynamic-comfyui/blob/main/default-resources.json"
-)
 
 
 @dataclass(frozen=True)
@@ -32,6 +28,7 @@ class ImportProject:
 
 @dataclass(frozen=True)
 class ManifestData:
+    require_huggingface_token: bool
     custom_nodes: list[CustomNode]
     files: list[FileSpec]
     import_projects: list[ImportProject]
@@ -55,32 +52,12 @@ def project_state_path(network_volume: Path) -> Path:
     return network_volume / ".dynamic-comfyui_selected_project"
 
 
-def default_resources_url_from_package_json(package_json_path: Path) -> str:
-    # Defaults are intentionally pinned to a canonical remote manifest URL so
-    # pip-installed runtime wheels behave the same even when package.json is absent.
-    _ = package_json_path
-    return DEFAULT_RESOURCES_URL
-
-
-def _local_default_manifest_path(package_json_path: Path) -> Path | None:
-    candidates: list[Path] = []
-    package_candidate = package_json_path.parent / "default-resources.json"
-    if package_candidate not in candidates:
-        candidates.append(package_candidate)
-    cwd_candidate = find_file_upwards("default-resources.json")
-    if cwd_candidate is not None and cwd_candidate not in candidates:
-        candidates.append(cwd_candidate)
-    root_candidate = Path("/default-resources.json")
-    if root_candidate not in candidates:
-        candidates.append(root_candidate)
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate
-    return None
-
-
 def _parse_manifest(path: Path) -> ManifestData:
     data = read_json(path)
+
+    raw_require_hf_token = data.get("require_huggingface_token", False)
+    if not isinstance(raw_require_hf_token, bool):
+        raise ValueError("Manifest field 'require_huggingface_token' must be a boolean")
 
     raw_nodes = data.get("custom_nodes", [])
     if raw_nodes is None:
@@ -132,14 +109,11 @@ def _parse_manifest(path: Path) -> ManifestData:
         project_url = normalize_manifest_url(str(item.get("project_url", "")).strip())
         if not project_url:
             raise ValueError(f"import_projects[{idx}].project_url is required")
-        try:
-            validate_manifest_url(project_url)
-        except Exception as exc:
-            print_warning(f"Warning: skipping invalid import_projects[{idx}].project_url '{project_url}' ({exc})")
-            continue
+        validate_manifest_url(project_url)
         import_projects.append(ImportProject(project_url=project_url))
 
     return ManifestData(
+        require_huggingface_token=raw_require_hf_token,
         custom_nodes=nodes,
         files=files,
         import_projects=import_projects,
@@ -189,23 +163,25 @@ def download_manifest(url: str, path: Path) -> None:
         raise RuntimeError(f"Downloaded project manifest is empty: {path}")
 
 
-def resolve_default_manifest(package_json_path: Path, temp_dir: Path) -> Path:
+def resolve_default_manifest(package_json_path: Path, temp_dir: Path, network_volume: Path) -> Path:
+    _ = package_json_path
     ensure_dir(temp_dir)
-    default_url = default_resources_url_from_package_json(package_json_path)
+    default_url = read_default_manifest_url_override(network_volume)
     if default_url:
+        normalized_url = normalize_manifest_url(default_url)
+        validate_manifest_url(normalized_url)
         candidate = temp_dir / "default-resources-remote.json"
         try:
-            download_file(default_url, candidate)
+            download_file(normalized_url, candidate)
             if candidate.is_file() and candidate.stat().st_size > 0:
-                print_info(f"Loaded remote default resources manifest: [url]{default_url}[/]")
+                print_info(f"Loaded configured default resources manifest: [url]{normalized_url}[/]")
                 return candidate
         except Exception as exc:
-            print_warning(f"Warning: failed to download remote default resources manifest: {default_url} ({exc})")
-    local_manifest = _local_default_manifest_path(package_json_path)
-    if local_manifest is not None:
-        print_info(f"Loaded local default resources manifest: {local_manifest}")
-        return local_manifest
-    print_warning("Warning: no default resources manifest available; continuing with project resources only.")
+            print_warning(f"Warning: failed to download configured default resources manifest: {normalized_url} ({exc})")
+            print_warning("Warning: continuing with project resources only for this run.")
+    else:
+        print_info("No default resources manifest configured; continuing with project resources only.")
+
     empty = temp_dir / "default-resources-empty.json"
     empty.write_text('{"custom_nodes": [], "files": []}\n', encoding="utf-8")
     return empty
@@ -267,6 +243,9 @@ def _resolved_project_manifest(project_manifest_path: Path, temp_dir: Path) -> M
         merged_files_map[file_spec.target] = file_spec
 
     return ManifestData(
+        require_huggingface_token=root.require_huggingface_token or any(
+            manifest.require_huggingface_token for manifest in imported
+        ),
         custom_nodes=list(merged_nodes_map.values()),
         files=list(merged_files_map.values()),
         import_projects=root.import_projects,
@@ -306,3 +285,9 @@ def resources_for_cleanup(project_manifest_path: Path) -> tuple[list[str], list[
     node_dirs = [node.repo_dir for node in data.custom_nodes]
     file_targets = [file_spec.target for file_spec in data.files]
     return node_dirs, file_targets
+
+
+def project_requires_hf_token(project_manifest_path: Path) -> bool:
+    temp_dir = Path(tempfile.mkdtemp(prefix="dynamic-comfyui-import-projects-"))
+    data = _resolved_project_manifest(project_manifest_path, temp_dir)
+    return data.require_huggingface_token
