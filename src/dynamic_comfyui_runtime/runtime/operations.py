@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import urllib.parse
 import urllib.error
@@ -84,6 +85,10 @@ class InstallExecution:
     merged: MergedManifest
     node_failures: list[NodeInstallFailure]
     file_failures: list[FileInstallFailure]
+
+
+def _settings_network_volume(ctx: RuntimeContext) -> Path:
+    return set_network_volume_default(Path(os.environ.get("NETWORK_VOLUME", str(ctx.network_volume))))
 
 
 def _instruction_text() -> str:
@@ -195,14 +200,13 @@ def prepare_project_manifest(network_volume: Path, source_url: str) -> tuple[Pat
 
 def _load_manifest_context(
     ctx: RuntimeContext,
-    network_volume: Path,
     project_manifest_path: Path,
     *,
     default_manifest_path: Path | None = None,
 ) -> tuple[MergedManifest, str | None]:
     temp_dir = Path(tempfile.mkdtemp(prefix="dynamic-comfyui-install-manifest-"))
     resolved_default_manifest = default_manifest_path or resolve_default_manifest(
-        ctx.package_json_path, temp_dir, network_volume
+        ctx.package_json_path, temp_dir, _settings_network_volume(ctx)
     )
     merged = merge_manifests(project_manifest_path, resolved_default_manifest, temp_dir=temp_dir)
     return merged, None
@@ -503,7 +507,6 @@ def _execute_dependency_install(
     with status("Loading and merging manifests..."):
         merged, hf_token = _load_manifest_context(
             ctx,
-            network_volume,
             project_manifest_path,
             default_manifest_path=default_manifest_path,
         )
@@ -672,7 +675,11 @@ def cmd_install_deps(ctx: RuntimeContext, project_urls: list[str] | None = None)
     total = len(project_urls)
     ctx.network_volume = network_volume
     shared_manifest_temp_dir = Path(tempfile.mkdtemp(prefix="dynamic-comfyui-install-default-manifest-"))
-    shared_default_manifest_path = resolve_default_manifest(ctx.package_json_path, shared_manifest_temp_dir, network_volume)
+    shared_default_manifest_path = resolve_default_manifest(
+        ctx.package_json_path,
+        shared_manifest_temp_dir,
+        _settings_network_volume(ctx),
+    )
     for index, project_url in enumerate(project_urls, start=1):
         manifest_path, source_url = prepare_project_manifest(network_volume, project_url)
         print_info(f"Installing dependencies for project [{index}/{total}]: [url]{source_url}[/]")
