@@ -174,6 +174,7 @@ def install_files(
     log_interval_seconds = 20.0
     checkpoint_state: dict[str, int] = {}
     last_log_time_by_target: dict[str, float] = {}
+    highlighted_remaining_target: str | None = None
 
     def _process_file(file_spec: FileSpec) -> FileInstallFailure | None:
         nonlocal reserved_known_bytes
@@ -216,9 +217,11 @@ def install_files(
                     effective_total = known_size if known_size and known_size > 0 else total_size
                     total = effective_total if effective_total and effective_total > 0 else None
                     progress_snapshots[file_spec.target] = (downloaded, total)
+                    is_highlighted = highlighted_remaining_target == file_spec.target
+                    effective_log_interval = 5.0 if is_highlighted else log_interval_seconds
                     if total is None:
                         last_log_time = last_log_time_by_target.get(file_spec.target, now)
-                        if downloaded > 0 and now - last_log_time >= log_interval_seconds:
+                        if downloaded > 0 and now - last_log_time >= effective_log_interval:
                             print_info(
                                 f"[download] {file_spec.target}: progress "
                                 f"({format_size_for_display(downloaded)} downloaded)"
@@ -228,23 +231,25 @@ def install_files(
 
                     percent = int((downloaded * 100) / total) if total > 0 else 0
                     last_checkpoint = checkpoint_state.get(file_spec.target, 0)
-                    next_checkpoint = last_checkpoint + checkpoint_step
+                    effective_checkpoint_step = 5 if is_highlighted else checkpoint_step
+                    max_checkpoint = 95 if is_highlighted else 90
+                    next_checkpoint = last_checkpoint + effective_checkpoint_step
                     emitted_checkpoint = False
-                    while next_checkpoint <= 90 and percent >= next_checkpoint:
+                    while next_checkpoint <= max_checkpoint and percent >= next_checkpoint:
                         print_info(
                             f"[download] {file_spec.target}: {next_checkpoint}% "
                             f"({format_size_for_display(downloaded)}/{format_size_for_display(total)})"
                         )
                         emitted_checkpoint = True
                         last_checkpoint = next_checkpoint
-                        next_checkpoint += checkpoint_step
+                        next_checkpoint += effective_checkpoint_step
                     checkpoint_state[file_spec.target] = last_checkpoint
                     if emitted_checkpoint:
                         last_log_time_by_target[file_spec.target] = now
                         return
 
                     last_log_time = last_log_time_by_target.get(file_spec.target, now)
-                    if downloaded > 0 and now - last_log_time >= log_interval_seconds:
+                    if downloaded > 0 and now - last_log_time >= effective_log_interval:
                         print_info(
                             f"[download] {file_spec.target}: {percent}% "
                             f"({format_size_for_display(downloaded)}/{format_size_for_display(total)})"
@@ -303,7 +308,21 @@ def install_files(
                     )
             if remaining_downloads == 1 and len(pending_targets) == 1:
                 remaining_target = next(iter(pending_targets))
-                print_info(f"Remaining download: {remaining_target} is downloading")
+                with progress_lock:
+                    highlighted_remaining_target = remaining_target
+                    last_log_time_by_target[remaining_target] = 0.0
+                    remaining_completed, remaining_total = progress_snapshots.get(remaining_target, (0, None))
+                if remaining_total and remaining_total > 0:
+                    print_info(
+                        "Remaining download: "
+                        f"{remaining_target} is downloading "
+                        f"({format_size_for_display(remaining_completed)}/{format_size_for_display(remaining_total)})"
+                    )
+                else:
+                    print_info(
+                        "Remaining download: "
+                        f"{remaining_target} is downloading ({format_size_for_display(remaining_completed)} downloaded)"
+                    )
             if on_progress:
                 on_progress()
 
