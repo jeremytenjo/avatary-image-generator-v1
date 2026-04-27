@@ -1,8 +1,8 @@
 {
   "custom_nodes": [
     {
-      "repo_dir": "comfyui-downloader",
-      "repo": "https://github.com/jeremytenjo/comfyui-downloader.git"
+      "repo_dir": "ComfyUI-Downloader",
+      "repo": "https://github.com/jeremytenjo/ComfyUI-Downloader.git"
     }
   ]
 }
