@@ -579,6 +579,15 @@ def run_comfyui_install_flow(ctx: RuntimeContext, project_manifest_path: Path) -
         print_info(line)
 
 
+def _dependency_completion_message(ctx: RuntimeContext) -> str:
+    if ctx.install_start_ts is None:
+        return "Dependency installation complete."
+    elapsed_seconds = max(0, now_epoch() - ctx.install_start_ts)
+    elapsed_minutes = elapsed_seconds // 60
+    minute_label = "Minute" if elapsed_minutes == 1 else "Minutes"
+    return f"Dependency installation complete. [bold]{elapsed_minutes} {minute_label}[/]"
+
+
 def run_dependency_install_flow(
     ctx: RuntimeContext,
     project_manifest_path: Path,
@@ -604,7 +613,7 @@ def run_dependency_install_flow(
         execution.file_failures,
     )
     if show_completion:
-        print_info("Dependency installation complete.")
+        print_info(_dependency_completion_message(ctx))
     if show_comfyui_link:
         _print_comfyui_link()
 
@@ -708,7 +717,7 @@ def cmd_install_deps(ctx: RuntimeContext, project_urls: list[str] | None = None)
             comfyui_dir, _ = ensure_comfyui_workspace(network_volume)
             mark_failed(None, comfyui_dir, f"Dependency installation failed. {exc}")
             raise
-    print_info("Dependency installation complete.")
+    print_info(_dependency_completion_message(ctx))
     _print_comfyui_link()
 
 
