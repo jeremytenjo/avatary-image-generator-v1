@@ -3,6 +3,10 @@
     {
       "repo_dir": "ComfyUI-Downloader",
       "repo": "https://github.com/jeremytenjo/ComfyUI-Downloader.git"
+    },
+    {
+      "repo_dir": "ComfyUI-Save-Image-Ultra",
+      "repo": "https://github.com/jeremytenjo/ComfyUI-Save-Image-Ultra"
     }
   ]
 }
