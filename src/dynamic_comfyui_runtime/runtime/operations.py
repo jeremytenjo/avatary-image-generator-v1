@@ -583,6 +583,8 @@ def _dependency_completion_message(ctx: RuntimeContext) -> str:
     if ctx.install_start_ts is None:
         return "Dependency installation complete."
     elapsed_seconds = max(0, now_epoch() - ctx.install_start_ts)
+    if elapsed_seconds < 60:
+        return "Dependency installation complete. [bold]<1 Minute[/]"
     elapsed_minutes = elapsed_seconds // 60
     minute_label = "Minute" if elapsed_minutes == 1 else "Minutes"
     return f"Dependency installation complete. [bold]{elapsed_minutes} {minute_label}[/]"
