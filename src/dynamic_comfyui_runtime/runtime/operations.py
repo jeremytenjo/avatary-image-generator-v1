@@ -26,7 +26,6 @@ from .installer import (
 from .manifests import (
     FileSpec,
     MergedManifest,
-    active_project_manifest_path,
     download_manifest,
     load_project_state,
     merge_manifests,
@@ -181,7 +180,8 @@ def _prompt_manifest_url() -> str:
 
 
 def prompt_and_prepare_project_manifest(network_volume: Path) -> tuple[Path, str]:
-    manifest_path = active_project_manifest_path(network_volume)
+    _ = network_volume
+    manifest_path = Path(tempfile.mkstemp(prefix="dynamic-comfyui-project-manifest.", suffix=".json")[1])
     while True:
         source_url = _prompt_manifest_url()
         if not source_url:
@@ -196,7 +196,8 @@ def prompt_and_prepare_project_manifest(network_volume: Path) -> tuple[Path, str
 
 
 def prepare_project_manifest(network_volume: Path, source_url: str) -> tuple[Path, str]:
-    manifest_path = active_project_manifest_path(network_volume)
+    _ = network_volume
+    manifest_path = Path(tempfile.mkstemp(prefix="dynamic-comfyui-project-manifest.", suffix=".json")[1])
     normalized = normalize_manifest_url(source_url.strip())
     validate_manifest_url(normalized)
     with status("Downloading project manifest..."):
@@ -650,7 +651,8 @@ def cmd_install(ctx: RuntimeContext) -> None:
 
 
 def _save_selected_project(network_volume: Path, manifest_path: Path, source_url: str) -> None:
-    save_project_state(network_volume, "active-project", manifest_path, source_url)
+    _ = manifest_path
+    save_project_state(network_volume, "active-project", source_url)
     print_success("Selected project: active-project")
 
 
@@ -757,7 +759,7 @@ def cmd_install_default_deps(ctx: RuntimeContext) -> None:
         default_url=default_url,
     )
 
-    empty_project_manifest_path = active_project_manifest_path(network_volume)
+    empty_project_manifest_path = Path(tempfile.mkstemp(prefix="dynamic-comfyui-project-manifest.", suffix=".json")[1])
     write_empty_manifest(empty_project_manifest_path)
     run_dependency_install_flow(
         ctx,
@@ -824,13 +826,16 @@ def cmd_clear_default_manifest_url(ctx: RuntimeContext) -> None:
 
 def _snapshot_previous_manifest(network_volume: Path) -> tuple[str, str, Path | None]:
     try:
-        previous_key, previous_path, previous_source = load_project_state(network_volume)
+        previous_key, previous_source = load_project_state(network_volume)
     except Exception:
         return "", "", None
-    if previous_path.is_file():
+    if previous_source:
         tmp = Path(tempfile.mkstemp(prefix="dynamic-comfyui-previous-project-manifest.", suffix=".json")[1])
-        tmp.write_bytes(previous_path.read_bytes())
-        return previous_key, previous_source, tmp
+        try:
+            download_manifest(previous_source, tmp)
+            return previous_key, previous_source, tmp
+        except Exception:
+            return previous_key, previous_source, None
     return previous_key, previous_source, None
 
 
@@ -896,8 +901,8 @@ def cmd_update_nodes_and_models(ctx: RuntimeContext) -> None:
     else:
         print_warning(f"Could not auto-detect ComfyUI workspace. Using configured workspace root: {network_volume}")
 
-    key, _saved_manifest_path, source_url = load_project_state(network_volume)
-    manifest_path = active_project_manifest_path(network_volume)
+    key, source_url = load_project_state(network_volume)
+    manifest_path = Path(tempfile.mkstemp(prefix="dynamic-comfyui-project-manifest.", suffix=".json")[1])
 
     if source_url:
         source_url = normalize_manifest_url(source_url)
@@ -906,7 +911,7 @@ def cmd_update_nodes_and_models(ctx: RuntimeContext) -> None:
     else:
         write_empty_manifest(manifest_path)
 
-    save_project_state(network_volume, key, manifest_path, source_url)
+    save_project_state(network_volume, key, source_url)
     ctx.network_volume = network_volume
     run_comfyui_install_flow(ctx, manifest_path)
 

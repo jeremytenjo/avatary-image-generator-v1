@@ -44,10 +44,6 @@ class MergedManifest:
     project_files: list[FileSpec]
 
 
-def active_project_manifest_path(network_volume: Path) -> Path:
-    return network_volume / "projects" / "active-project.json"
-
-
 def project_state_path(network_volume: Path) -> Path:
     return network_volume / ".dynamic-comfyui_selected_project"
 
@@ -125,27 +121,28 @@ def write_empty_manifest(path: Path) -> None:
     path.write_text("{}\n", encoding="utf-8")
 
 
-def save_project_state(network_volume: Path, key: str, manifest_path: Path, source_url: str) -> None:
+def save_project_state(network_volume: Path, key: str, source_url: str) -> None:
     ensure_dir(network_volume)
     project_state_path(network_volume).write_text(
-        f"{key}\t{manifest_path}\t{source_url}\n",
+        f"{key}\t{source_url}\n",
         encoding="utf-8",
     )
 
 
-def load_project_state(network_volume: Path) -> tuple[str, Path, str]:
+def load_project_state(network_volume: Path) -> tuple[str, str]:
     state_path = project_state_path(network_volume)
     if not state_path.is_file():
         raise FileNotFoundError("No saved project selection found")
     lines = state_path.read_text(encoding="utf-8").splitlines()
     line = lines[0] if lines else ""
     parts = line.split("\t")
-    if len(parts) < 2 or not parts[0].strip() or not parts[1].strip():
+    if not parts or not parts[0].strip():
         raise RuntimeError(f"Saved project selection is invalid: {state_path}")
     key = parts[0].strip()
-    manifest_path = Path(parts[1].strip())
-    source_url = parts[2].strip() if len(parts) > 2 else ""
-    return key, manifest_path, source_url
+    # New format is `key<TAB>source_url`; keep backward compatibility with old
+    # `key<TAB>manifest_path<TAB>source_url`.
+    source_url = parts[2].strip() if len(parts) > 2 else (parts[1].strip() if len(parts) > 1 else "")
+    return key, source_url
 
 
 def normalize_manifest_url(url: str) -> str:
