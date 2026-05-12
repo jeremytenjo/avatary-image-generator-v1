@@ -28,6 +28,5 @@ def print_project_banner(source_url: str) -> None:
     banner = render_ascii_banner(project_name)
     term_console = console()
     term_console.print()
-    for line in banner.splitlines():
-        term_console.print(line, style="black on white")
+    term_console.print(banner, style="black", no_wrap=True, overflow="ignore")
     term_console.print()
