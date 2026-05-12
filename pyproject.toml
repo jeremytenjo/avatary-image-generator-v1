@@ -13,6 +13,7 @@ authors = [
   { name = "Jeremy Tenjo" }
 ]
 dependencies = [
+  "pyfiglet>=1.0.2",
   "rich>=13.7.0"
 ]
 
