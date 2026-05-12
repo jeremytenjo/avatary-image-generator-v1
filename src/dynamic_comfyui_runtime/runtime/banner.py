@@ -7,9 +7,6 @@ from pyfiglet import Figlet
 
 from .ui import console
 
-_ANSI_SHADOW = Figlet(font="ansi_shadow")
-
-
 def project_name_from_manifest_url(source_url: str) -> str:
     raw_name = urlparse(source_url).path.rsplit("/", 1)[-1]
     if raw_name.lower().endswith(".json"):
@@ -18,15 +15,16 @@ def project_name_from_manifest_url(source_url: str) -> str:
     return normalized or "project"
 
 
-def render_ascii_banner(text: str) -> str:
+def render_ascii_banner(text: str, width: int | None = None) -> str:
     normalized = re.sub(r"[^a-zA-Z0-9-]+", "-", text).strip("-").lower()
-    return _ANSI_SHADOW.renderText(normalized or "project").rstrip("\n")
+    figlet = Figlet(font="ansi_shadow", width=max(40, width or 80))
+    return figlet.renderText(normalized or "project").rstrip("\n")
 
 
 def print_project_banner(source_url: str) -> None:
     project_name = project_name_from_manifest_url(source_url)
-    banner = render_ascii_banner(project_name)
     term_console = console()
+    banner = render_ascii_banner(project_name, width=term_console.size.width)
     term_console.print()
     term_console.print(banner, style="black", no_wrap=True, overflow="ignore")
     term_console.print()
