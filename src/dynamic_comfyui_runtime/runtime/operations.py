@@ -10,6 +10,7 @@ from pathlib import Path
 
 from rich.table import Table
 
+from .banner import print_project_banner
 from .common import ensure_dir, format_size_for_display, now_epoch, probe_remote_file_size, require_tools, utc_timestamp
 from .default_manifest_url import (
     clear_default_manifest_url_override,
@@ -686,6 +687,7 @@ def cmd_install_deps(ctx: RuntimeContext, project_urls: list[str] | None = None)
 
     if not project_urls:
         manifest_path, source_url = prompt_and_prepare_project_manifest(network_volume)
+        print_project_banner(source_url)
         _save_selected_project(network_volume, manifest_path, source_url)
         ctx.network_volume = network_volume
         try:
@@ -707,6 +709,7 @@ def cmd_install_deps(ctx: RuntimeContext, project_urls: list[str] | None = None)
     )
     for index, project_url in enumerate(project_urls, start=1):
         manifest_path, source_url = prepare_project_manifest(network_volume, project_url)
+        print_project_banner(source_url)
         print_info(f"Installing dependencies for project [{index}/{total}]: [url]{source_url}[/]")
         _save_selected_project(network_volume, manifest_path, source_url)
         try:
