@@ -329,5 +329,5 @@ def print_project_banner(source_url: str) -> None:
     term_console = console()
     term_console.print()
     for line in banner.splitlines():
-        term_console.print(line, style="black on white")
+        term_console.print(line)
     term_console.print()
