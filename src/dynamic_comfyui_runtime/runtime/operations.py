@@ -378,6 +378,45 @@ def _ensure_hf_token_for_pending_downloads(
     return token
 
 
+def _ensure_hf_token_for_manifest_batch(
+    merged_manifests: list[MergedManifest],
+    comfyui_dir: Path,
+    hf_token: str | None,
+) -> str | None:
+    if hf_token:
+        return hf_token
+
+    hf_urls: list[str] = []
+    seen_urls: set[str] = set()
+    for merged in merged_manifests:
+        for spec in _pending_files_for_download(merged, comfyui_dir):
+            host = urllib.parse.urlparse(spec.url).netloc.lower()
+            if "huggingface.co" not in host:
+                continue
+            if spec.url in seen_urls:
+                continue
+            seen_urls.add(spec.url)
+            hf_urls.append(spec.url)
+    if not hf_urls:
+        return None
+
+    requires_token = any(_hf_url_requires_token(url) for url in hf_urls)
+    if not requires_token:
+        return None
+
+    print_panel(
+        "One or more pending model downloads returned HTTP 401 from Hugging Face across the selected manifests.\n"
+        "Enter a Hugging Face token once; it will be reused for all required downloads.\n"
+        "Create one at: [url]https://huggingface.co/settings/tokens[/].",
+        title="Hugging Face Token Required",
+        style="warning",
+    )
+    token = prompt_text("Enter your Hugging Face token").strip()
+    if not token:
+        raise RuntimeError("Hugging Face token is required for one or more pending model downloads")
+    return token
+
+
 def _print_install_plan_preview(merged: MergedManifest, custom_nodes_dir: Path, comfyui_dir: Path, hf_token: str | None) -> None:
     print_rule("Install Plan")
 
@@ -509,6 +548,7 @@ def _execute_dependency_install(
     *,
     manager_quiet: bool,
     default_manifest_path: Path | None = None,
+    hf_token: str | None = None,
 ) -> InstallExecution:
     print_rule("Dependency Install")
     network_volume = set_network_volume_default(ctx.network_volume)
@@ -597,6 +637,7 @@ def run_dependency_install_flow(
     project_manifest_path: Path,
     *,
     default_manifest_path: Path | None = None,
+    hf_token: str | None = None,
     show_completion: bool = True,
     show_comfyui_link: bool = True,
 ) -> None:
@@ -606,6 +647,7 @@ def run_dependency_install_flow(
         project_manifest_path,
         manager_quiet=True,
         default_manifest_path=default_manifest_path,
+        hf_token=hf_token,
     )
 
     mark_done(execution.merged, execution.comfyui_dir)
@@ -707,8 +749,25 @@ def cmd_install_deps(ctx: RuntimeContext, project_urls: list[str] | None = None)
         _settings_network_volume(ctx),
         fallback_network_volume=network_volume,
     )
-    for index, project_url in enumerate(project_urls, start=1):
+    project_manifests: list[tuple[Path, str]] = []
+    for project_url in project_urls:
         manifest_path, source_url = prepare_project_manifest(network_volume, project_url)
+        project_manifests.append((manifest_path, source_url))
+
+    comfyui_dir, _custom_nodes_dir = ensure_comfyui_workspace(network_volume)
+    merged_manifests: list[MergedManifest] = []
+    with status("Pre-checking Hugging Face requirements across selected manifests..."):
+        for manifest_path, _source_url in project_manifests:
+            merged, _loaded_hf_token = _load_manifest_context(
+                ctx,
+                network_volume,
+                manifest_path,
+                default_manifest_path=shared_default_manifest_path,
+            )
+            merged_manifests.append(merged)
+    shared_hf_token = _ensure_hf_token_for_manifest_batch(merged_manifests, comfyui_dir, None)
+
+    for index, (manifest_path, source_url) in enumerate(project_manifests, start=1):
         print_project_banner(source_url)
         print_info(f"Installing dependencies for project [{index}/{total}]: [url]{source_url}[/]")
         _save_selected_project(network_volume, manifest_path, source_url)
@@ -717,6 +776,7 @@ def cmd_install_deps(ctx: RuntimeContext, project_urls: list[str] | None = None)
                 ctx,
                 manifest_path,
                 default_manifest_path=shared_default_manifest_path,
+                hf_token=shared_hf_token,
                 show_completion=False,
                 show_comfyui_link=False,
             )
