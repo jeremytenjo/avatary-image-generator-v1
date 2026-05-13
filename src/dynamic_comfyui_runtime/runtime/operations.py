@@ -794,8 +794,9 @@ def cmd_install_deps(ctx: RuntimeContext, project_urls: list[str] | None = None)
         print_info(
             f"Project [{index}/{total}] dependency installation complete in [bold]{_format_elapsed_duration(project_elapsed_seconds)}[/]."
         )
-    total_elapsed_seconds = max(0, now_epoch() - batch_start_ts)
-    print_info(f"All project dependency installations complete in [bold]{_format_elapsed_duration(total_elapsed_seconds)}[/].")
+    if total > 1:
+        total_elapsed_seconds = max(0, now_epoch() - batch_start_ts)
+        print_info(f"All project dependency installations complete in [bold]{_format_elapsed_duration(total_elapsed_seconds)}[/].")
     _print_comfyui_link()
 
 
