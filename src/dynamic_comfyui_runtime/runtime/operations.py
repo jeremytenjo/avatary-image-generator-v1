@@ -625,11 +625,15 @@ def _dependency_completion_message(ctx: RuntimeContext) -> str:
     if ctx.install_start_ts is None:
         return "Dependency installation complete."
     elapsed_seconds = max(0, now_epoch() - ctx.install_start_ts)
+    return f"Dependency installation complete. [bold]{_format_elapsed_duration(elapsed_seconds)}[/]"
+
+
+def _format_elapsed_duration(elapsed_seconds: int) -> str:
     if elapsed_seconds < 60:
-        return "Dependency installation complete. [bold]<1 Minute[/]"
+        return "<1 Minute"
     elapsed_minutes = elapsed_seconds // 60
     minute_label = "Minute" if elapsed_minutes == 1 else "Minutes"
-    return f"Dependency installation complete. [bold]{elapsed_minutes} {minute_label}[/]"
+    return f"{elapsed_minutes} {minute_label}"
 
 
 def run_dependency_install_flow(
@@ -767,7 +771,9 @@ def cmd_install_deps(ctx: RuntimeContext, project_urls: list[str] | None = None)
             merged_manifests.append(merged)
     shared_hf_token = _ensure_hf_token_for_manifest_batch(merged_manifests, comfyui_dir, None)
 
+    batch_start_ts = now_epoch()
     for index, (manifest_path, source_url) in enumerate(project_manifests, start=1):
+        project_start_ts = now_epoch()
         print_project_banner(source_url)
         print_info(f"Installing dependencies for project [{index}/{total}]: [url]{source_url}[/]")
         _save_selected_project(network_volume, manifest_path, source_url)
@@ -784,7 +790,12 @@ def cmd_install_deps(ctx: RuntimeContext, project_urls: list[str] | None = None)
             comfyui_dir, _ = ensure_comfyui_workspace(network_volume)
             mark_failed(None, comfyui_dir, f"Dependency installation failed. {exc}")
             raise
-    print_info(_dependency_completion_message(ctx))
+        project_elapsed_seconds = max(0, now_epoch() - project_start_ts)
+        print_info(
+            f"Project [{index}/{total}] dependency installation complete in [bold]{_format_elapsed_duration(project_elapsed_seconds)}[/]."
+        )
+    total_elapsed_seconds = max(0, now_epoch() - batch_start_ts)
+    print_info(f"All project dependency installations complete in [bold]{_format_elapsed_duration(total_elapsed_seconds)}[/].")
     _print_comfyui_link()
 
 
