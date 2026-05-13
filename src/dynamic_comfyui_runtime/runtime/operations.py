@@ -557,12 +557,14 @@ def _execute_dependency_install(
     require_tools(["python3", "git"])
 
     with status("Loading and merging manifests..."):
-        merged, hf_token = _load_manifest_context(
+        merged, loaded_hf_token = _load_manifest_context(
             ctx,
             network_volume,
             project_manifest_path,
             default_manifest_path=default_manifest_path,
         )
+    if not hf_token:
+        hf_token = loaded_hf_token
     hf_token = _ensure_hf_token_for_pending_downloads(merged, comfyui_dir, hf_token)
     _print_install_plan_preview(merged, custom_nodes_dir, comfyui_dir, hf_token)
     mark_running(merged, comfyui_dir)
